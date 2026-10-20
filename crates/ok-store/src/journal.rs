@@ -26,7 +26,7 @@
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write as _};
-use std::os::windows::fs::OpenOptionsExt;
+use crate::sys::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};

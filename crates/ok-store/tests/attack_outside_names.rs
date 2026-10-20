@@ -6,6 +6,7 @@
 //! no business writing through, or change a name that was not its to change?
 
 use std::fs::{self, OpenOptions};
+#[cfg(windows)]
 use std::os::windows::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -136,6 +137,7 @@ fn every_title_becomes_a_name_that_passes() {
 /// own (he typed `[[the orchard]]` and followed the link, or typed the title
 /// on the line). The file's name is his and must stay as he wrote it.
 #[test]
+#[cfg(windows)] // Windows paths: `\` between folders, any capitals.
 fn opening_a_text_by_another_spelling_of_its_name_does_not_rename_the_file() {
     let rig = Rig::new("ao-case-open");
     fs::write(rig.folder.join("The Orchard.md"), "Trees.").unwrap();
@@ -296,6 +298,7 @@ fn a_title_with_a_colon_and_a_question_mark_becomes_a_text() {
 /// the basic plane, and two that differ only in how an accent is spelled:
 /// each is its own text through a save, a kill, a rename and a discard.
 #[test]
+#[cfg(windows)] // Windows paths: `\` between folders, any capitals.
 fn names_with_combining_marks_other_scripts_and_two_spellings_of_an_accent_stay_apart() {
     let rig = Rig::new("ao-unicode");
     let names = ["mitsqanaqan\u{0313}.md", "\u{6587}\u{7AE0}.md", "\u{1F332} trees.md", "cafe\u{0301}.md", "caf\u{00E9}.md", "na\u{00EF}ve \u{2014} notes.txt"];
@@ -340,6 +343,7 @@ fn names_with_combining_marks_other_scripts_and_two_spellings_of_an_accent_stay_
 /// folders further down in it: started, saved, closed, opened, brought back
 /// after a kill, kept beside after a conflict, renamed, discarded and listed.
 #[test]
+#[cfg(windows)] // Windows paths: `\` between folders, any capitals.
 fn a_path_longer_than_260_characters_goes_through_everything() {
     let rig = Rig::new("ao-long-path");
     let mut folder = rig.folder.clone();
@@ -408,6 +412,7 @@ fn a_path_longer_than_260_characters_goes_through_everything() {
 /// the store can do is done to `essay.md`; every other file must come out
 /// byte for byte as it went in.
 #[test]
+#[cfg(windows)] // Windows paths: `\` between folders, any capitals.
 fn texts_whose_names_begin_alike_are_never_taken_for_each_other() {
     let rig = Rig::new("ao-prefix");
     let others = [
@@ -474,6 +479,7 @@ fn texts_whose_names_begin_alike_are_never_taken_for_each_other() {
 
 // ------------------------------------------------- .discarded already holds it
 
+#[cfg(windows)]
 /// `.discarded` already holds a file by the name, a folder by the next name
 /// the store would try, and a read-only file by the one after. The discard
 /// must land on a name of its own and leave all three as they were.

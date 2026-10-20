@@ -229,8 +229,10 @@ fn two_starts_at_once_on_other_folders_take_a_journal_up_exactly_once() {
     race_two_recoveries(false);
 }
 
+#[cfg(windows)]
 #[test]
 fn a_journal_someone_is_reading_is_recovered_all_the_same_and_one_nobody_may_read_is_said_to_wait() {
+    #[cfg(windows)]
     use std::os::windows::fs::OpenOptionsExt;
     let bare = Bare::new("journal-held");
     let docid = 0xEEEE_0000_0000_0001;
@@ -333,6 +335,7 @@ fn an_earlier_sessions_journal_is_never_outranked_into_the_bin() {
 }
 
 #[test]
+#[cfg(windows)]
 fn a_journal_that_names_a_place_outside_the_folder_is_never_followed_there() {
     let bare = Bare::new("journal-outside");
     let outside = bare.root.with_file_name("not his.md");

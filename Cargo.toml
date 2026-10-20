@@ -1,12 +1,13 @@
 [workspace]
-members = ["crates/ok-gfx", "crates/ok-text", "crates/ok-host", "crates/ok-win", "crates/ok-store", "crates/ok-ui"]
+members = ["crates/ok-gfx", "crates/ok-text", "crates/ok-host", "crates/ok-win", "crates/ok-mini", "crates/ok-store", "crates/ok-ui"]
 resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 
-# No third-party crates anywhere in this workspace. Win32 is declared by hand.
+# No third-party crates on Windows: Win32 is declared by hand. On macOS and
+# Linux the window comes from one small crate, minifb (see crates/ok-mini).
 
 [package]
 name = "ok"
@@ -17,8 +18,13 @@ edition.workspace = true
 [dependencies]
 ok-gfx = { path = "crates/ok-gfx" }
 ok-host = { path = "crates/ok-host" }
-ok-ui ={ path = "crates/ok-ui" }
+ok-ui = { path = "crates/ok-ui" }
+
+[target.'cfg(windows)'.dependencies]
 ok-win = { path = "crates/ok-win" }
+
+[target.'cfg(not(windows))'.dependencies]
+ok-mini = { path = "crates/ok-mini" }
 
 [profile.release]
 opt-level = 3

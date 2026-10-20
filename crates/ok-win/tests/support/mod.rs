@@ -14,7 +14,7 @@ use std::sync::OnceLock;
 use ok_gfx::{BitmapFont, Frame, Pen, Rgb};
 use ok_win::{Options, Report, SelfTest, Step};
 
-#[path = "../../examples/demo.rs"]
+#[path = "../../examples/demo/windows.rs"]
 pub mod demo;
 
 use demo::{Demo, Layout, CELL, DESK_INK, INK};

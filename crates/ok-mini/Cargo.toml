@@ -1,0 +1,15 @@
+[package]
+name = "ok-mini"
+description = "The window shell for macOS and Linux: one minifb window showing the framebuffer"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ok-gfx = { path = "../ok-gfx" }
+ok-host = { path = "../ok-host" }
+
+# The one crate from outside the workspace, and only off Windows: a window
+# that shows a pixel buffer, on macOS (Metal) and Linux (X11, which Wayland
+# desktops run too). Windows keeps its own hand-declared shell in ok-win.
+[target.'cfg(not(windows))'.dependencies]
+minifb = { version = "0.29", default-features = false, features = ["x11"] }

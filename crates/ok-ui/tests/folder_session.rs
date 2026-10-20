@@ -764,8 +764,10 @@ fn a_file_handed_over_by_a_second_launch_is_opened_where_it_lies() {
     rig.type_text(" More.");
     rig.send(Event::Open(folder.join("Here.md")));
     assert_eq!(rig.text(), "Here. More.");
-    // A file in a folder inside the writing folder, however it is spelled.
-    rig.send(Event::Open(PathBuf::from(folder.to_string_lossy().to_uppercase()).join("college").join("plan.md")));
+    // A file in a folder inside the writing folder, however it is spelled
+    // where names ignore case (Linux's do not).
+    let plan = if cfg!(target_os = "linux") { folder.join("College").join("Plan.md") } else { PathBuf::from(folder.to_string_lossy().to_uppercase()).join("college").join("plan.md") };
+    rig.send(Event::Open(plan));
     assert_eq!((rig.text().as_str(), rig.app.session().name()), ("The plan.", "Plan"));
     until(&mut rig, "the text left behind to be written", |_| scratch.read("Here.md") == "Here. More.");
     assert!(!folder.join("plan.md").exists());

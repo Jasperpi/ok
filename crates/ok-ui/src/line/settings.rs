@@ -532,6 +532,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(windows)] // Windows paths: drive letters and `\`.
     fn a_long_value_keeps_its_end() {
         assert_eq!(shown("manila", 22), "manila");
         assert_eq!(shown("C:\\Users\\jaspe\\Documents\\ok", 22), "jaspe\\Documents\\ok");

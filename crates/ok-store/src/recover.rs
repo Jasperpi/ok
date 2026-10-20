@@ -19,7 +19,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fs::{self, File, OpenOptions};
 use std::io::Read;
-use std::os::windows::fs::OpenOptionsExt;
+use crate::sys::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::time::Duration;

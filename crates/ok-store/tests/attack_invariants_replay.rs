@@ -4,6 +4,7 @@
 //! journal accepts although no replay can ever pass it.
 
 use std::fs::{self, File, OpenOptions};
+#[cfg(windows)]
 use std::os::windows::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -63,6 +64,7 @@ fn places_holding(rig: &Rig, needle: &str) -> Vec<PathBuf> {
     all.into_iter().filter(|path| fs::read(path).map(|bytes| String::from_utf8_lossy(&bytes).contains(needle)).unwrap_or(false)).collect()
 }
 
+#[cfg(windows)]
 /// The builder's promise for a text closed while its file could not take it:
 /// "Such a journal is brought back if the text is reopened in the same
 /// session." `News::Closed { in_journal: true }` is what the interface is told.

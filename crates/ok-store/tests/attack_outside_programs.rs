@@ -7,6 +7,9 @@
 //! a journal open at the wrong moment; a file whose bytes are not on this
 //! disk; and a sync client updating a text nobody is typing in.
 
+// Holds files open the way Windows programs do; there is no such thing elsewhere.
+#![cfg(windows)]
+
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::os::windows::ffi::OsStrExt;

@@ -11,6 +11,7 @@
 //!
 //! One test, alone in its file: what happened inside the loop is counted in
 //! one place.
+#![cfg(windows)]
 
 #[path = "review_ffi.rs"]
 mod ffi;

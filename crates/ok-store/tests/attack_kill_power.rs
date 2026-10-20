@@ -89,6 +89,7 @@ fn records(bytes: &[u8]) -> Vec<(u8, usize)> {
 }
 
 #[test]
+#[cfg(windows)] // Windows paths: `\` between folders, any capitals.
 fn a_power_cut_that_costs_the_journal_and_the_folder_different_amounts_around_a_rename() {
     let rig = Rig::new("power-rename");
     let (mut store, _) = rig.open();

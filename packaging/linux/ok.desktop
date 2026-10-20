@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=ok
+Comment=A writing tool: one sheet of Gallant
+Exec=ok %f
+Icon=ok
+Terminal=false
+Categories=Office;WordProcessor;
+MimeType=text/plain;text/markdown;

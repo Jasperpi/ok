@@ -3,7 +3,7 @@
 
 use std::fs;
 use std::io;
-use std::os::windows::fs::MetadataExt;
+use crate::sys::MetadataExt;
 use std::path::{Path, PathBuf};
 
 use crate::fsio;
@@ -141,6 +141,7 @@ mod tests {
     use crate::testing::Scratch;
 
     #[test]
+    #[cfg(windows)]
     fn lists_texts_and_folders_in_order_and_leaves_the_rest_out() {
         let dir = Scratch::new("tree");
         let root = dir.path();

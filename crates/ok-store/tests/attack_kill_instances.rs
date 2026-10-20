@@ -10,6 +10,7 @@
 //! that matters: is everything that was typed still where he will find it?
 
 use std::fs::{self, OpenOptions};
+#[cfg(windows)]
 use std::os::windows::fs::OpenOptionsExt;
 use std::path::Path;
 use std::sync::{Arc, Barrier};
@@ -209,6 +210,7 @@ fn no_text_goes_unsaid_when_another_folders_instance_walks_the_journals_too() {
     assert!(refused.is_empty(), "{refused:?}");
     assert!(unsaid.is_empty(), "in {rounds} rounds, {} texts were left in the journal with the file stale and no word in either instance's report; the first: {:?}", unsaid.len(), unsaid.first());
 }
+#[cfg(windows)]
 /// A journal recovery could not take up at start is still lying in the data
 /// directory, under a high generation number if the crashed session had
 /// rotated it. He opens the text (it shows the stale file), types, and the
@@ -274,6 +276,7 @@ fn text_typed_after_a_start_that_skipped_a_journal_survives_the_next_kill() {
     assert!(anywhere("FIRST-SESSION-UNSAVED"), "what was typed in the first session is in no file: {report:?}");
 }
 
+#[cfg(windows)]
 /// The same skipped journal, and this time no second kill: he works on,
 /// saves, and closes everything properly. The first session's words are
 /// still only in that journal. The next start must find them.

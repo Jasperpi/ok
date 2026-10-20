@@ -54,6 +54,7 @@ fn desk_rig() -> (Rig, Folder) {
 }
 
 #[test]
+#[cfg(windows)] // Windows paths: drive letters and `\`.
 fn what_enter_will_do_is_said_before_it_is_pressed() {
     let (mut rig, _) = desk_rig();
     let expected = [

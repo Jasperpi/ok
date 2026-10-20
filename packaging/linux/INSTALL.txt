@@ -1,0 +1,15 @@
+ok for Linux (x86-64)
+
+Run it from here:
+
+    ./ok
+
+Or put it on your path and in your applications menu:
+
+    install -Dm755 ok ~/.local/bin/ok
+    install -Dm644 ok.png ~/.local/share/icons/hicolor/256x256/apps/ok.png
+    install -Dm644 ok.desktop ~/.local/share/applications/ok.desktop
+
+ok needs an X11 or Wayland desktop (it uses X11, which Wayland desktops
+provide through XWayland). Your writing goes in ~/Documents/ok, saved as
+you type. Copy and paste use wl-copy, xclip or xsel if one is installed.

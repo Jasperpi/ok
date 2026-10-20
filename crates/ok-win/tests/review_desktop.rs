@@ -6,6 +6,7 @@
 //! "holds" leak into the keyboard everyone else sees, whether a key held for
 //! real leaks into the script, whether the lock keys or the clipboard move,
 //! and what happens to a window the cloaked one owns.
+#![cfg(windows)]
 
 mod support;
 

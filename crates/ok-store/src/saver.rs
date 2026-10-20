@@ -37,6 +37,12 @@ use crate::wal::{Open, Stamp};
 use crate::{DocId, DocShared, Hold, News, NewsOut, Opened, ReadOnly, Resolve, Shared, StoreError, Tuning};
 
 /// Pauses, in milliseconds, while another program is writing a file we want to read.
+/// How long a file changed by another program is left to settle before it
+/// is read as their version, where nothing stops us reading a file that is
+/// still being written.
+#[cfg(unix)]
+const SETTLING_MS: u64 = 150;
+
 const READ_PAUSES: [u64; 3] = [10, 30, 100];
 /// How long a file another program has open for writing must hold still
 /// before what it holds is shown.
@@ -613,7 +619,7 @@ impl Saver {
         };
 
         if create {
-            if sys::stat(&path).is_ok() || self.pending.contains_key(&key) || self.unread.contains_key(&key) || self.left.contains_key(&key) {
+            if names::taken(&path) || self.pending.contains_key(&key) || self.unread.contains_key(&key) || self.left.contains_key(&key) {
                 return Err(StoreError::Name(NameError::Taken));
             }
             if let Some(parent) = path.parent() {
@@ -1342,6 +1348,14 @@ impl Saver {
             (None, _) => doc.own.contains(&hash::state(&found.bytes)),
         };
         drop(found.file);
+        // Windows keeps a file that is being written from being read; these
+        // systems do not, so a file written a moment ago may be half of
+        // what its writer is putting there. It is looked at again shortly.
+        #[cfg(unix)]
+        if !same && sys::unix_ms_now().saturating_sub(sys::filetime_to_unix_ms(info.modified)) < SETTLING_MS {
+            doc.recheck_at = Some(Instant::now() + Duration::from_millis(SETTLING_MS));
+            return;
+        }
         let id = doc.id;
         doc.missing_since = None;
         if was_removed {
@@ -1583,7 +1597,7 @@ impl Saver {
         let to = names::check_rel(to, true).map_err(StoreError::Name)?;
         let (from_key, to_key) = (names::key(&from), names::key(&to));
         let (source, target) = (self.root.join(&from), self.root.join(&to));
-        if from_key != to_key && (sys::stat(&target).is_ok() || self.index_of_key(&to_key).is_some()) {
+        if from_key != to_key && (names::taken(&target) || self.index_of_key(&to_key).is_some()) {
             return Err(StoreError::Name(NameError::Taken));
         }
         if let Some(parent) = target.parent() {

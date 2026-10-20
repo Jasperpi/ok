@@ -17,8 +17,11 @@
 use std::ffi::c_void;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
+#[cfg(windows)]
 use std::os::windows::ffi::OsStrExt;
+#[cfg(windows)]
 use std::os::windows::fs::OpenOptionsExt;
+#[cfg(windows)]
 use std::os::windows::io::AsRawHandle;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -42,6 +45,7 @@ struct ByHandle {
     index_low: u32,
 }
 
+#[cfg(windows)]
 #[link(name = "kernel32")]
 extern "system" {
     fn GetLastError() -> u32;
@@ -49,6 +53,7 @@ extern "system" {
     fn SetFileInformationByHandle(handle: isize, class: u32, info: *const c_void, size: u32) -> i32;
 }
 
+#[cfg(windows)]
 fn index_of(file: &File) -> Option<u64> {
     let mut info = ByHandle::default();
     // SAFETY: `info` is a live BY_HANDLE_FILE_INFORMATION and the handle is open.
@@ -58,11 +63,13 @@ fn index_of(file: &File) -> Option<u64> {
     Some(((info.index_high as u64) << 32) | info.index_low as u64)
 }
 
+#[cfg(windows)]
 /// The index of the file under `path`, through a handle that asks for no access.
 fn look(path: &Path) -> Option<u64> {
     index_of(&OpenOptions::new().access_mode(0).share_mode(7).custom_flags(0x0200_0000).open(path).ok()?)
 }
 
+#[cfg(windows)]
 /// Renames the file behind `file` over `to` (an absolute verbatim path) in
 /// one step, replacing what is there even if others have it open.
 fn rename_over(file: &File, to: &Path) -> Result<(), u32> {
@@ -94,6 +101,7 @@ impl Rng {
     }
 }
 
+#[cfg(windows)]
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let holders = args.iter().any(|a| a == "holders");
@@ -217,3 +225,7 @@ fn main() {
         println!("  placed {after_look} us after the look began, {before_return} us before our rename returned; that rename call took {rename_took} us");
     }
 }
+
+/// Renames by handle are a Windows question; elsewhere there is nothing to probe.
+#[cfg(not(windows))]
+fn main() {}

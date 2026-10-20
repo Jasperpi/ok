@@ -115,8 +115,8 @@ struct Tally {
 fn worker(index: usize, rounds: usize) -> Tally {
     let mut tally = Tally::default();
     let mut rng = Rng(0x2074_A7E5 + index as u64 * 15_485_863 + (wall_ns() as u64 | 1));
-    let rotor = helper("attack_kill_rotor.exe");
-    let actor = helper("attack_kill_actor.exe");
+    let rotor = helper(&format!("attack_kill_rotor{}", std::env::consts::EXE_SUFFIX));
+    let actor = helper(&format!("attack_kill_actor{}", std::env::consts::EXE_SUFFIX));
     assert!(rotor.exists() && actor.exists(), "the helpers {} and {} have not been built", rotor.display(), actor.display());
     let mut rig = Rig::new(&format!("rotation-{index}"));
     let mut base = String::new();
@@ -286,6 +286,7 @@ fn run_and_kill(rotor: &Path, rig: &Rig, args: [String; 4], run: Duration) -> (H
     (reader.join().expect("the reader thread ends"), killed_at)
 }
 
+#[cfg(windows)]
 /// Another program keeps the file open in a way that lets nothing be renamed
 /// over it, for as long as the helper runs and through the first start after
 /// the kill. Every save is held; everything typed is in the journal alone.
@@ -293,10 +294,11 @@ fn run_and_kill(rotor: &Path, rig: &Rig, args: [String; 4], run: Duration) -> (H
 /// and once the other program lets go the next start brings everything back.
 #[test]
 fn killed_while_every_save_is_held_by_another_program_everything_typed_comes_back() {
+    #[cfg(windows)]
     use std::os::windows::fs::OpenOptionsExt;
     const SHARE_READ_WRITE: u32 = 3;
     let rounds: usize = std::env::var("OK_ATTACK_HELD").ok().and_then(|v| v.parse().ok()).unwrap_or(30);
-    let rotor = helper("attack_kill_rotor.exe");
+    let rotor = helper(&format!("attack_kill_rotor{}", std::env::consts::EXE_SUFFIX));
     assert!(rotor.exists(), "the helper {} has not been built", rotor.display());
     let mut rng = Rng(0x4E1D_4E1D ^ (wall_ns() as u64 | 1));
     let rig = Rig::new("rotation-held");

@@ -3,16 +3,19 @@
 //! and writing a file whole through a temp that is flushed, renamed by its own
 //! handle, and flushed again. Nothing here ever truncates or writes in place.
 
-use std::fs::{self, File, FileTimes, OpenOptions};
+#[cfg(windows)]
+use std::fs::FileTimes;
+use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write as _};
-use std::os::windows::fs::{FileTimesExt, OpenOptionsExt};
+#[cfg(windows)]
+use std::os::windows::fs::FileTimesExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use crate::hash;
 use crate::names;
-use crate::sys::{self, Info};
+use crate::sys::{self, Info, OpenOptionsExt};
 use crate::wal::Stamp;
 use crate::Faults;
 
@@ -73,6 +76,9 @@ pub(crate) fn open_fail(code: u32) -> Fail {
 
 fn write_fail(error: &io::Error) -> Fail {
     match sys::code(error) {
+        // Making a new file: "no such file" can only mean the folder.
+        #[cfg(unix)]
+        2 => Fail::FolderGone,
         39 | 112 => Fail::DiskFull,
         3 | 15 | 21 | 53 | 67 => Fail::FolderGone,
         19 => Fail::CannotWrite,
@@ -86,7 +92,11 @@ fn write_fail(error: &io::Error) -> Fail {
 /// handle is held no writer can get in. Other readers, and programs that
 /// replace the file by rename, are not disturbed.
 pub(crate) fn open_guard(path: &Path) -> Result<(File, Info), Fail> {
-    let file = OpenOptions::new().read(true).share_mode(sys::SHARE_READ | sys::SHARE_DELETE).open(path).map_err(|e| open_fail(sys::code(&e)))?;
+    let file = OpenOptions::new().read(true).share_mode(sys::SHARE_READ | sys::SHARE_DELETE).open(path).map_err(|e| match open_fail(sys::code(&e)) {
+        // One number for both here: a missing folder is told apart by looking.
+        Fail::Missing if path.parent().is_some_and(|folder| !folder.is_dir()) => Fail::FolderGone,
+        fail => fail,
+    })?;
     let info = sys::info(&file).map_err(|e| Fail::Io(sys::code(&e)))?;
     if info.attrs & sys::ATTR_DIRECTORY != 0 {
         return Err(Fail::Denied);
@@ -165,6 +175,7 @@ pub(crate) struct Write<'a> {
     pub first_temp: Option<&'a str>,
     pub bytes: &'a [u8],
     /// Creation time to carry over from the file being replaced.
+    #[cfg_attr(unix, allow(dead_code))]
     pub created: Option<u64>,
     /// False for a name believed to be new: then an existing file is never
     /// replaced and the write fails with [`Fail::NameTaken`].
@@ -315,6 +326,7 @@ pub(crate) fn write_file(w: &Write, verify: &mut dyn FnMut(Look) -> Result<(), F
     if let Err(e) = wrote {
         return give_up(file, write_fail(&e));
     }
+    #[cfg(windows)]
     if let Some(created) = w.created.and_then(sys::filetime_to_system) {
         let _ = file.set_times(FileTimes::new().set_created(created));
     }
@@ -327,6 +339,12 @@ pub(crate) fn write_file(w: &Write, verify: &mut dyn FnMut(Look) -> Result<(), F
         return give_up(file, fail);
     }
 
+    // Windows will not rename over a read-only file; a rename elsewhere asks
+    // only the folder, so the file's own say is checked here.
+    #[cfg(unix)]
+    if w.replace && is_readonly(w.target) {
+        return give_up(file, Fail::ReadOnly);
+    }
     let mut refused = false;
     let mut renamed = sys::rename_handle(&file, &target, w.replace, w.posix);
     if w.posix && matches!(renamed, Err(87 | 50 | 1)) {
@@ -406,8 +424,16 @@ pub(crate) fn write_numbered(base: &Path, bytes: &[u8], faults: &Faults) -> Resu
 /// copied. A link is moved as the link it is, not the file it leads to.
 pub(crate) fn move_no_replace(from: &Path, to: &Path) -> Result<(), Fail> {
     let to = names::verbatim(to).ok_or(Fail::BadPath)?;
-    let file = OpenOptions::new().access_mode(sys::DELETE | sys::SYNCHRONIZE).share_mode(sys::SHARE_ALL).custom_flags(sys::FLAG_OPEN_REPARSE_POINT).open(from).map_err(|e| open_fail(sys::code(&e)))?;
-    sys::rename_handle(&file, &to, false, false).map_err(|code| match code {
+    #[cfg(windows)]
+    let moved = {
+        let file = OpenOptions::new().access_mode(sys::DELETE | sys::SYNCHRONIZE).share_mode(sys::SHARE_ALL).custom_flags(sys::FLAG_OPEN_REPARSE_POINT).open(from).map_err(|e| open_fail(sys::code(&e)))?;
+        sys::rename_handle(&file, &to, false, false)
+    };
+    // Renamed by its name, so a link moves as the link and not what it leads to.
+    #[cfg(unix)]
+    let moved = sys::rename_path(from, &to, false);
+    moved.map_err(|code| match code {
+        2 => Fail::Missing,
         183 | 80 => Fail::NameTaken,
         32 | 33 => Fail::Busy,
         5 => Fail::Denied,
@@ -498,6 +524,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(windows)]
     fn replacing_keeps_the_creation_time_on_both_rename_paths() {
         let dir = Scratch::new("fsio-replace");
         let target = dir.path().join("essay.md");
@@ -671,6 +698,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(windows)]
     fn the_guard_denies_writers_and_is_refused_by_one() {
         let dir = Scratch::new("fsio-guard");
         let target = dir.path().join("essay.md");
@@ -734,6 +762,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(windows)]
     fn temp_names_have_the_expected_shape() {
         let name = temp_name(Path::new(r"C:\w\The orchard.md"));
         assert!(name.starts_with("~The orchard.md.") && name.ends_with(".tmp"), "{name}");

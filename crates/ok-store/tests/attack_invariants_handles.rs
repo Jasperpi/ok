@@ -2,6 +2,9 @@
 //! his folder outlives one save or one read, and with the window inactive not
 //! even the folder is held. Plus one case of a save left waiting for good.
 
+// Holds files open the way Windows programs do; there is no such thing elsewhere.
+#![cfg(windows)]
+
 use std::fs::{self, OpenOptions};
 use std::os::windows::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};

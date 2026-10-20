@@ -591,6 +591,7 @@ fn the_settings_are_kept_through_the_session_and_read_at_launch() {
 }
 
 #[test]
+#[cfg(windows)] // Windows paths: drive letters and `\`.
 fn the_folder_is_changed_by_enter_and_never_only_tried() {
     let (mut rig, folder) = rig();
     line_types(&mut rig, "set folder");

@@ -58,7 +58,7 @@ fn actor_exe() -> PathBuf {
     if matches!(dir.file_name().and_then(|name| name.to_str()), Some("deps" | "examples")) {
         dir.pop();
     }
-    dir.join("examples").join("attack_kill_actor.exe")
+    dir.join("examples").join(format!("attack_kill_actor{}", std::env::consts::EXE_SUFFIX))
 }
 
 struct Rng(u64);
@@ -460,6 +460,7 @@ fn without_stamp(rel: &str) -> String {
 /// process that is killed part-way (up to three times) before one that is
 /// allowed to finish. Both must end with the same files holding the same text.
 #[test]
+#[cfg(windows)] // Windows paths: `\` between folders, any capitals.
 fn a_recovery_killed_part_way_and_run_again_ends_where_an_unbroken_one_does() {
     use ok_store::testing::{quick, save_wait, type_end};
     use ok_store::{Setup, Store};

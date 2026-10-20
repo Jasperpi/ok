@@ -10,6 +10,7 @@
 //!
 //! One test, alone in its file, so that nothing else in the process makes
 //! or frees objects while it counts.
+#![cfg(windows)]
 
 #[path = "review_ffi.rs"]
 mod ffi;

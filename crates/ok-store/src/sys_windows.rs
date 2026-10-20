@@ -7,10 +7,20 @@ use std::ffi::c_void;
 use std::fs::{File, OpenOptions};
 use std::io;
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
-use std::os::windows::fs::OpenOptionsExt;
 use std::os::windows::io::{AsRawHandle, FromRawHandle};
+
+pub(crate) use std::os::windows::fs::{MetadataExt, OpenOptionsExt};
+
+/// A path as the UTF-16 units it is kept as in the journal.
+pub(crate) fn wide_units(path: &Path) -> Vec<u16> {
+    path.as_os_str().encode_wide().collect()
+}
+
+/// The path kept as `units`.
+pub(crate) fn wide_path(units: &[u16]) -> PathBuf {
+    PathBuf::from(std::ffi::OsString::from_wide(units))
+}
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub(crate) const GENERIC_READ: u32 = 0x8000_0000;
 pub(crate) const GENERIC_WRITE: u32 = 0x4000_0000;
@@ -52,8 +62,7 @@ const NOTIFY_LAST_WRITE: u32 = 0x10;
 
 const WAIT_TIMEOUT: u32 = 258;
 
-/// 100 ns ticks between 1601 and 1970.
-const FILETIME_EPOCH: u64 = 116_444_736_000_000_000;
+pub(crate) use crate::calendar::{filetime_to_system, filetime_to_unix_ms, unix_ms_from_utc, unix_ms_now, utc_fields, FILETIME_EPOCH};
 
 #[repr(C)]
 #[derive(Default)]
@@ -368,22 +377,6 @@ pub(crate) fn wait(event: &Event, watch: Option<&Watch>, ms: Option<u32>) -> Wok
     }
 }
 
-/// Milliseconds since 1970, UTC.
-pub(crate) fn unix_ms_now() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
-}
-
-/// FILETIME ticks to milliseconds since 1970.
-pub(crate) fn filetime_to_unix_ms(ticks: u64) -> u64 {
-    ticks.saturating_sub(FILETIME_EPOCH) / 10_000
-}
-
-/// FILETIME ticks as a `SystemTime`, for handing a creation time to std.
-pub(crate) fn filetime_to_system(ticks: u64) -> Option<SystemTime> {
-    let since = ticks.checked_sub(FILETIME_EPOCH)?;
-    UNIX_EPOCH.checked_add(Duration::from_nanos(since.checked_mul(100)?))
-}
-
 /// The local calendar fields of a UTC instant: year, month, day, hour,
 /// minute, second. Falls back to UTC arithmetic if Windows will not say.
 pub(crate) fn local_fields(unix_ms: u64) -> (u16, u8, u8, u8, u8, u8) {
@@ -397,41 +390,6 @@ pub(crate) fn local_fields(unix_ms: u64) -> (u16, u8, u8, u8, u8, u8) {
     } else {
         utc_fields(unix_ms)
     }
-}
-
-/// The UTC calendar fields of an instant, by arithmetic alone.
-pub(crate) fn utc_fields(unix_ms: u64) -> (u16, u8, u8, u8, u8, u8) {
-    let secs = unix_ms / 1000;
-    let days = (secs / 86_400) as i64;
-    let rem = secs % 86_400;
-    // Civil-from-days (Howard Hinnant's algorithm), valid far beyond any date a file can carry.
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z.rem_euclid(146_097);
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = (doy - (153 * mp + 2) / 5 + 1) as u8;
-    let month = if mp < 10 { mp + 3 } else { mp - 9 } as u8;
-    let year = (yoe + era * 400 + if month <= 2 { 1 } else { 0 }) as u16;
-    (year, month, day, (rem / 3600) as u8, (rem % 3600 / 60) as u8, (rem % 60) as u8)
-}
-
-/// The inverse of [`utc_fields`]: milliseconds since 1970 for a UTC calendar
-/// time, or `None` for fields that are not a date.
-pub(crate) fn unix_ms_from_utc(year: u16, month: u8, day: u8, hour: u8, minute: u8, second: u8) -> Option<u64> {
-    if !(1970..=9999).contains(&year) || !(1..=12).contains(&month) || !(1..=31).contains(&day) || hour > 23 || minute > 59 || second > 59 {
-        return None;
-    }
-    let y = year as i64 - if month <= 2 { 1 } else { 0 };
-    let era = y.div_euclid(400);
-    let yoe = y.rem_euclid(400);
-    let mp = (month as i64 + 9) % 12;
-    let doy = (153 * mp + 2) / 5 + day as i64 - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    let days = era * 146_097 + doe - 719_468;
-    let secs = days * 86_400 + hour as i64 * 3600 + minute as i64 * 60 + second as i64;
-    u64::try_from(secs).ok().map(|s| s * 1000)
 }
 
 /// Opens a folder for listing, used as the hint for [`open_by_id`].
@@ -455,36 +413,6 @@ pub(crate) fn volume_root(path: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn utc_fields_match_known_dates() {
-        assert_eq!(utc_fields(0), (1970, 1, 1, 0, 0, 0));
-        // 2026-10-11 14:32:05 UTC
-        assert_eq!(utc_fields(1_791_729_125_000), (2026, 10, 11, 14, 32, 5));
-        // A leap day.
-        assert_eq!(utc_fields(1_709_210_096_000), (2024, 2, 29, 12, 34, 56));
-    }
-
-    #[test]
-    fn filetime_conversions_agree() {
-        let ms = 1_791_729_125_123u64;
-        let ticks = ms * 10_000 + FILETIME_EPOCH;
-        assert_eq!(filetime_to_unix_ms(ticks), ms);
-        let system = filetime_to_system(ticks).unwrap();
-        assert_eq!(system.duration_since(UNIX_EPOCH).unwrap().as_millis() as u64, ms);
-        assert!(filetime_to_system(5).is_none());
-    }
-
-    #[test]
-    fn calendar_fields_convert_both_ways() {
-        for ms in [0u64, 1_791_729_125_000, 1_709_210_096_000, 951_782_400_000, 4_102_444_799_000] {
-            let (y, mo, d, h, mi, s) = utc_fields(ms);
-            assert_eq!(unix_ms_from_utc(y, mo, d, h, mi, s), Some(ms), "{ms}");
-        }
-        assert_eq!(unix_ms_from_utc(2026, 13, 1, 0, 0, 0), None);
-        assert_eq!(unix_ms_from_utc(1969, 12, 31, 23, 59, 59), None);
-        assert_eq!(unix_ms_from_utc(2026, 10, 11, 24, 0, 0), None);
-    }
 
     #[test]
     fn the_volume_root_is_the_prefix_and_nothing_more() {

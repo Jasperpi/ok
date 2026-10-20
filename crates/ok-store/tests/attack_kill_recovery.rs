@@ -8,6 +8,9 @@
 //! crate keeps its own writer private: a forged journal has to be made by
 //! something other than the code under test anyway.
 
+// Holds files open the way Windows programs do; there is no such thing elsewhere.
+#![cfg(windows)]
+
 use std::fs::{self, OpenOptions};
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::OpenOptionsExt;

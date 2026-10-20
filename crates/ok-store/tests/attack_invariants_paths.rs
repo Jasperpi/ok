@@ -47,6 +47,7 @@ fn places_holding(rig: &Rig, needle: &str) -> Vec<PathBuf> {
     all.into_iter().filter(|path| fs::read(path).map(|bytes| String::from_utf8_lossy(&bytes).contains(needle)).unwrap_or(false)).collect()
 }
 
+#[cfg(windows)]
 /// The base design, section 1: "Document paths are canonicalized at open so
 /// a symlink is saved through, not replaced", and its test list: "a
 /// symlinked file (the link must survive a save)".
@@ -143,6 +144,7 @@ fn a_text_further_down_than_260_characters_goes_through_every_operation() {
 /// is deleted while the text is open". Nothing typed may be lost, and the
 /// interface must be told the saves are not arriving.
 #[test]
+#[cfg(windows)] // Windows paths: `\` between folders, any capitals.
 fn a_text_whose_sub_folder_is_deleted_under_it_loses_nothing_and_says_so() {
     let rig = Rig::new("inv-subfolder-gone");
     let (mut store, _) = rig.open();

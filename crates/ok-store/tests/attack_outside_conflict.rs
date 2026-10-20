@@ -6,6 +6,9 @@
 //! at one file, after which every version either side ever had must still
 //! be somewhere.
 
+// Holds files open the way Windows programs do; there is no such thing elsewhere.
+#![cfg(windows)]
+
 use std::collections::HashSet;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;

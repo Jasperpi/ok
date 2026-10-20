@@ -5,6 +5,7 @@
 //! Nothing here shows a window, takes the focus, writes the clipboard, makes
 //! a sound or moves the pointer. Every call either reads, or acts on the
 //! test's own cloaked window.
+#![cfg(windows)]
 
 #![allow(dead_code, non_snake_case, clippy::upper_case_acronyms)]
 

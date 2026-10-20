@@ -2469,6 +2469,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(windows)] // Windows paths: drive letters and `\`.
     fn a_path_is_found_inside_the_folder_however_it_is_spelled() {
         let root = Path::new(r"\\?\C:\Users\x\Documents\ok");
         assert_eq!(inside(root, Path::new(r"c:\users\X\documents\OK\College\The orchard.md")), Some(PathBuf::from(r"College\The orchard.md")));

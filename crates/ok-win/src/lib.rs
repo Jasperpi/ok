@@ -9,6 +9,7 @@
 //!
 //! Win32 is declared by hand in `win32.rs`; there are no dependencies outside
 //! this workspace.
+#![cfg(windows)]
 
 mod crash;
 mod fonts;

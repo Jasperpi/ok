@@ -11,6 +11,7 @@
 //! and `a_character_that_arrives_while_the_frame_is_being_drawn_is_not_lost`.
 //! Both pass since the shell was repaired. The rest pin down behaviour the
 //! contract is silent on, or measure a road nothing else covers.
+#![cfg(windows)]
 
 mod support;
 

@@ -5,6 +5,7 @@
 //! another program is in the way at an awkward moment.
 
 use std::fs::{self, OpenOptions};
+#[cfg(windows)]
 use std::os::windows::fs::{MetadataExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
@@ -88,6 +89,7 @@ fn block_history(rig: &Rig) -> PathBuf {
 
 // ------------------------------------------------- a journal held at the start
 
+#[cfg(windows)]
 /// The journal a kill left is held by a program that shares nothing when the
 /// store starts. The start says the text is waiting. The program lets go,
 /// he opens the text, and what he typed is there, unsaved, as after any
@@ -203,6 +205,7 @@ fn a_big_cut_waits_until_the_fuller_text_can_be_kept_as_a_version() {
 
 // ------------------------------------------- nothing can vouch for the text
 
+#[cfg(windows)]
 /// The journal's disk is failing and another program has the file, so the
 /// text can go to neither. Closing must not answer "it is in the journal":
 /// the text is written into a file of its own beside the text, and the
@@ -355,6 +358,7 @@ fn capitals_changed_in_explorer_are_told_as_a_move() {
     assert!(store.shutdown(SOON));
 }
 
+#[cfg(windows)]
 /// A text reached through a link is saved where it really is, and the link
 /// stays a link. A link to a file cannot be made on this machine without a
 /// privilege, so this is run with a linked folder (a junction), which needs

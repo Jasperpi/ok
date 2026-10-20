@@ -48,6 +48,7 @@
 //! Every path is given to the crate: the writing folder, and a data
 //! directory that stands in for `%LOCALAPPDATA%\ok`. Nothing is hardcoded.
 
+mod calendar;
 mod format;
 mod fsio;
 mod hash;
@@ -59,6 +60,11 @@ mod saver;
 #[cfg(test)]
 mod scenario;
 mod state;
+#[cfg(windows)]
+#[path = "sys_windows.rs"]
+mod sys;
+#[cfg(unix)]
+#[path = "sys_unix.rs"]
 mod sys;
 #[doc(hidden)]
 pub mod testing;

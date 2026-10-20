@@ -14,8 +14,7 @@
 //! `seq` starts at 0 in each file and has no gaps. All integers are little
 //! endian.
 
-use std::ffi::OsString;
-use std::os::windows::ffi::{OsStrExt, OsStringExt};
+use crate::sys::{wide_path, wide_units};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -148,7 +147,7 @@ pub(crate) fn push(out: &mut Vec<u8>, kind: u8, seq: u64, payload: &[u8]) {
 }
 
 fn put_path(out: &mut Vec<u8>, path: &Path) {
-    let wide: Vec<u16> = path.as_os_str().encode_wide().collect();
+    let wide = wide_units(path);
     out.extend_from_slice(&(wide.len() as u32).to_le_bytes());
     for unit in wide {
         out.extend_from_slice(&unit.to_le_bytes());
@@ -318,7 +317,7 @@ impl<'a> Cur<'a> {
         let n = self.u32()? as usize;
         let raw = self.take(n.checked_mul(2)?)?;
         let wide: Vec<u16> = raw.chunks_exact(2).map(|p| u16::from_le_bytes([p[0], p[1]])).collect();
-        Some(PathBuf::from(OsString::from_wide(&wide)))
+        Some(wide_path(&wide))
     }
 
     fn rest_str(&mut self) -> Option<String> {

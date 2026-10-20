@@ -4,6 +4,7 @@
 
 use std::fs::OpenOptions;
 use std::io::Write;
+#[cfg(windows)]
 use std::os::windows::fs::OpenOptionsExt;
 use std::time::Duration;
 
@@ -21,6 +22,7 @@ fn expect(store: &mut Store, what: &str, want: impl Fn(&News) -> bool) -> News {
     }
 }
 
+#[cfg(windows)]
 /// The design's own test list: "Read during a truncate window never loads an
 /// empty text." The store's test of that covers a text that is already open.
 /// Opening one in that window falls back to a read with full sharing and

@@ -4,6 +4,7 @@
 //!
 //! One test, alone in its file and so alone in its process, because what it
 //! measures is time. Its parts run one after another for the same reason.
+#![cfg(windows)]
 
 mod support;
 

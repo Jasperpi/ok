@@ -3,6 +3,9 @@
 //! nothing happening, and in each state in which a save is being held back
 //! and retried on a timer.
 
+// Holds files open the way Windows programs do; there is no such thing elsewhere.
+#![cfg(windows)]
+
 use std::fs::{self, OpenOptions};
 use std::os::windows::fs::OpenOptionsExt;
 use std::time::Duration;

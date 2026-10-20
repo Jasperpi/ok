@@ -35,7 +35,7 @@ pub fn headless_exe() -> PathBuf {
     if matches!(dir.file_name().and_then(|name| name.to_str()), Some("deps" | "examples")) {
         dir.pop();
     }
-    dir.join("examples").join("headless.exe")
+    dir.join("examples").join(format!("headless{}", std::env::consts::EXE_SUFFIX))
 }
 
 /// A folder of its own for one test, gone again when the value is dropped.

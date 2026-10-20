@@ -8,6 +8,7 @@
 //! nobody to close anything or report anything, so the whole process is
 //! ended. That one is tried in a child process, which is this same test
 //! program started again with one test named.
+#![cfg(windows)]
 
 #[path = "review_ffi.rs"]
 mod ffi;

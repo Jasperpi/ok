@@ -9,6 +9,7 @@
 //! `Store` sees meanwhile.
 
 use std::fs::{self, File, OpenOptions};
+#[cfg(windows)]
 use std::os::windows::fs::OpenOptionsExt;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -200,6 +201,7 @@ fn record_costs_microseconds_with_nothing_in_the_way() {
     assert!(store.shutdown(SOON));
 }
 
+#[cfg(windows)]
 #[test]
 fn record_costs_microseconds_while_the_saver_retries_a_file_another_program_holds() {
     let rig = Rig::new("inv-held");
@@ -273,6 +275,7 @@ fn a_stuck_saver_thread_costs_the_keystroke_thread_nothing_but_the_bound() {
     assert!(store.shutdown(SOON));
 }
 
+#[cfg(windows)]
 #[test]
 fn a_stuck_journal_thread_raises_the_alarm_and_costs_the_keystroke_thread_nothing() {
     let rig = Rig::new("inv-stuck-journal");
@@ -396,6 +399,7 @@ fn a_saver_thread_that_dies_is_reported_to_the_interface() {
     assert!(told, "a save asked of a dead saver thread was answered with nothing at all: {after:?}");
 }
 
+#[cfg(windows)]
 /// `News::Closed { in_journal: true }` after the journal thread has died: the
 /// text is said to wait in a journal that nothing has written to since.
 #[test]

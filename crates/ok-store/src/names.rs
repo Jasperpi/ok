@@ -2,7 +2,9 @@
 //! handle needs, the rules a new file name must pass, and the names given to
 //! the copies kept beside a text when two versions both have to survive.
 
+#[cfg(windows)]
 use std::ffi::OsString;
+#[cfg(windows)]
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::path::{Component, Path, PathBuf};
 
@@ -175,6 +177,7 @@ pub(crate) fn key(rel: &Path) -> String {
 /// `\\?\UNC\server\share`. Relative paths, forward slashes and `.` or `..`
 /// components are refused, because in verbatim form Windows would take them
 /// literally and fail with error 123.
+#[cfg(windows)]
 pub(crate) fn verbatim(path: &Path) -> Option<PathBuf> {
     const SEP: u16 = b'\\' as u16;
     let wide: Vec<u16> = path.as_os_str().encode_wide().collect();
@@ -205,6 +208,27 @@ pub(crate) fn verbatim(path: &Path) -> Option<PathBuf> {
         }
     }
     Some(PathBuf::from(OsString::from_wide(&full)))
+}
+
+/// An absolute path with no `.` or `..` in it, unchanged; anything else is
+/// refused, as on Windows.
+#[cfg(unix)]
+pub(crate) fn verbatim(path: &Path) -> Option<PathBuf> {
+    let plain = path.is_absolute() && path.components().all(|part| matches!(part, Component::RootDir | Component::Normal(_)));
+    plain.then(|| path.to_path_buf())
+}
+
+/// True when a file is there under this name in any capitals. Texts are
+/// told apart without case everywhere, so that a folder means the same on
+/// every system: on one where `Notes.md` and `notes.md` can both exist, the
+/// second is refused all the same.
+pub(crate) fn taken(path: &Path) -> bool {
+    if sys::stat(path).is_ok() {
+        return true;
+    }
+    let (Some(folder), Some(name)) = (path.parent(), path.file_name()) else { return false };
+    let name = name.to_string_lossy().to_lowercase();
+    std::fs::read_dir(folder).map(|listing| listing.flatten().any(|entry| entry.file_name().to_string_lossy().to_lowercase() == name)).unwrap_or(false)
 }
 
 /// The lock and index key of a writing folder: FNV-1a of its canonical path
@@ -276,6 +300,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(windows)]
     fn verbatim_prefixes_once_and_only_absolute_paths() {
         let v = verbatim(Path::new(r"C:\Users\x\essay.md")).unwrap();
         assert_eq!(v, PathBuf::from(r"\\?\C:\Users\x\essay.md"));
@@ -287,6 +312,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(windows)]
     fn verbatim_refuses_what_windows_would_take_literally() {
         for bad in [r"essay.md", r"sub\essay.md", r"C:essay.md", r"C:\a\.\b.md", r"C:\a\..\b.md", r"C:/a/b.md", r"\\?\C:\a\.\b.md", r"\\?\C:\a\\b.md", r"\a\b.md", r""] {
             assert!(verbatim(Path::new(bad)).is_none(), "{bad} should be refused");
@@ -348,6 +374,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(windows)]
     fn relative_paths_stay_inside_the_folder() {
         assert_eq!(check_rel(Path::new("essay.md"), true), Ok(PathBuf::from("essay.md")));
         assert_eq!(check_rel(Path::new("College/The orchard.md"), true), Ok(PathBuf::from(r"College\The orchard.md")));
@@ -377,6 +404,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(windows)]
     fn sibling_and_numbered_names() {
         let p = Path::new(r"C:\w\essay.md");
         let s = sibling(p, "mine", 0, 1);

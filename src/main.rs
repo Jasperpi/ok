@@ -1,15 +1,20 @@
 //! ok: the program. Everything it does lives in the crates; this file only
-//! starts the window with the interface in it.
+//! starts the window with the interface in it: the Win32 shell on Windows,
+//! the minifb one on macOS and Linux.
 #![windows_subsystem = "windows"]
 
+#[cfg(windows)]
 use std::path::PathBuf;
 
 use ok_gfx::{gallant, FaceSet, Frame, Pen, Rect, Rgb};
 use ok_ui::{App, Options};
+#[cfg(windows)]
 use ok_win::{Icon, SelfTest, Step};
 
-/// The icon: the word on its sheet, as the machine prints it.
-fn icon(size: u32) -> Icon {
+/// The icon at `size` pixels square: the word on its sheet, as the machine
+/// prints it. It is drawn at 32 pixels; smaller sizes are that picture
+/// averaged down, larger ones the same pixels made bigger.
+fn icon_frame(size: u32) -> Frame {
     const PAPER: Rgb = Rgb(0xEE, 0xE3, 0xC8);
     const INK: Rgb = Rgb(0x22, 0x1F, 0x1B);
     let faces = FaceSet::new(gallant());
@@ -18,15 +23,24 @@ fn icon(size: u32) -> Icon {
     frame.clear(PAPER);
     let (x, y) = ((32 - 2 * cell_w as i32) / 2, (32 - cell_h as i32) / 2);
     faces.draw_text(&mut frame, "ok", x, y, Pen::new(INK));
-    // Smaller sizes are the 32-pixel picture averaged down.
-    let step = (32 / size.max(1)).max(1);
-    let mut small = Frame::new(size as usize, size as usize);
-    for sy in 0..size as i32 {
-        for sx in 0..size as i32 {
+    let size = size.max(1) as i32;
+    let mut out = Frame::new(size as usize, size as usize);
+    if size >= 32 {
+        for sy in 0..size {
+            for sx in 0..size {
+                let colour = frame.get(sx * 32 / size, sy * 32 / size).unwrap_or(PAPER);
+                out.fill(Rect::new(sx, sy, 1, 1), colour);
+            }
+        }
+        return out;
+    }
+    let step = (32 / size).max(1);
+    for sy in 0..size {
+        for sx in 0..size {
             let (mut r, mut g, mut b, mut n) = (0u32, 0u32, 0u32, 0u32);
-            for dy in 0..step as i32 {
-                for dx in 0..step as i32 {
-                    if let Some(Rgb(pr, pg, pb)) = frame.get(sx * step as i32 + dx, sy * step as i32 + dy) {
+            for dy in 0..step {
+                for dx in 0..step {
+                    if let Some(Rgb(pr, pg, pb)) = frame.get(sx * step + dx, sy * step + dy) {
                         r += pr as u32;
                         g += pg as u32;
                         b += pb as u32;
@@ -35,12 +49,49 @@ fn icon(size: u32) -> Icon {
                 }
             }
             let n = n.max(1);
-            small.fill(Rect::new(sx, sy, 1, 1), Rgb((r / n) as u8, (g / n) as u8, (b / n) as u8));
+            out.fill(Rect::new(sx, sy, 1, 1), Rgb((r / n) as u8, (g / n) as u8, (b / n) as u8));
         }
     }
-    Icon { width: size, height: size, argb: small.pixels().iter().map(|px| 0xFF00_0000 | px).collect() }
+    out
 }
 
+/// The icon as Windows takes it.
+#[cfg(windows)]
+fn icon(size: u32) -> Icon {
+    let frame = icon_frame(size);
+    Icon { width: size, height: size, argb: frame.pixels().iter().map(|px| 0xFF00_0000 | px).collect() }
+}
+
+/// `ok --icons dir`: the icon as the PNG files of a macOS `.iconset`, for
+/// `iconutil` to make the app's `.icns` from.
+#[cfg(not(windows))]
+fn write_icons(dir: &std::path::Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dir)?;
+    for size in [16u32, 32, 128, 256, 512] {
+        for (scale, suffix) in [(1, ""), (2, "@2x")] {
+            let frame = icon_frame(size * scale);
+            let png = ok_gfx::encode_png(frame.width(), frame.height(), frame.pixels());
+            std::fs::write(dir.join(format!("icon_{size}x{size}{suffix}.png")), png)?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn main() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if let [flag, dir] = args.as_slice() {
+        if flag == "--icons" {
+            std::process::exit(if write_icons(std::path::Path::new(dir)).is_ok() { 0 } else { 1 });
+        }
+    }
+    let file = std::env::args().nth(1).filter(|arg| !arg.starts_with('-')).and_then(|arg| std::path::absolute(arg).ok());
+    let window = ok_mini::Options { open: file.clone(), ..ok_mini::Options::default() };
+    let code = ok_mini::run(window, move |host| Box::new(App::new(host, Options { file, store: true, ..Options::default() })));
+    std::process::exit(code);
+}
+
+#[cfg(windows)]
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let icons = vec![icon(32), icon(16)];

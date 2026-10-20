@@ -6,6 +6,7 @@
 
 use std::fs::{self, OpenOptions};
 use std::io::Write;
+#[cfg(windows)]
 use std::os::windows::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
@@ -162,6 +163,7 @@ fn a_file_that_is_not_utf8_is_shown_and_never_rewritten() {
 }
 
 #[test]
+#[cfg(windows)] // Windows paths: `\` between folders, any capitals.
 fn names_that_windows_or_the_folder_cannot_take_are_refused() {
     let rig = Rig::new("names");
     fs::write(rig.folder.join("taken.md"), "here first").unwrap();
@@ -250,6 +252,7 @@ fn unsaved_edits_come_back_after_a_kill() {
 }
 
 #[test]
+#[cfg(windows)] // Windows paths: `\` between folders, any capitals.
 fn a_text_never_saved_is_written_out_by_recovery() {
     let rig = Rig::new("never-saved");
     let (mut store, _) = rig.open();
@@ -448,6 +451,7 @@ fn edits_typed_between_a_save_request_and_its_barrier_survive_rotation_and_a_kil
 
 // ------------------------------------------------------ outside interference
 
+#[cfg(windows)]
 #[test]
 fn a_writer_holding_the_file_means_busy_nothing_written_and_everything_journaled() {
     let rig = Rig::new("busy-writer");
@@ -484,6 +488,7 @@ fn a_writer_holding_the_file_means_busy_nothing_written_and_everything_journaled
     assert!(rig.journals().is_empty());
 }
 
+#[cfg(windows)]
 #[test]
 fn readers_do_not_stop_a_save_unless_they_refuse_to_share_delete() {
     let rig = Rig::new("readers");
@@ -595,6 +600,7 @@ fn two_keep_both_conflicts_in_one_second_leave_three_files() {
     assert!(rig.journals().is_empty());
 }
 
+#[cfg(windows)]
 #[test]
 fn a_file_caught_between_truncate_and_write_is_never_loaded_as_empty() {
     let rig = Rig::new("truncated");
@@ -824,6 +830,7 @@ fn a_file_renamed_while_we_were_down_is_found_again_by_recovery() {
     assert!(store.shutdown(SOON));
 }
 
+#[cfg(windows)]
 #[test]
 fn a_volume_without_the_one_step_rename_still_saves_and_still_refuses_to_overwrite() {
     let rig = Rig::new("old-rename");
@@ -883,7 +890,10 @@ fn two_stores_on_one_folder_exactly_one_gets_it() {
     let (first, _) = rig.open();
     let mut spelled = rig.setup(quick());
     spelled.folder = PathBuf::from(format!("{}\\", rig.folder.to_string_lossy().to_uppercase()));
-    for setup in [rig.setup(quick()), spelled] {
+    // The same folder in other capitals is the same folder only where names
+    // ignore case.
+    let setups = if cfg!(windows) { vec![rig.setup(quick()), spelled] } else { vec![rig.setup(quick())] };
+    for setup in setups {
         match Store::open(setup) {
             Err(OpenError::Locked(owner)) => {
                 assert_eq!(owner.pid, std::process::id());
@@ -999,6 +1009,7 @@ fn versions_are_kept_listed_read_and_brought_back() {
 // ------------------------------------------------- rename, rewrite, discard
 
 #[test]
+#[cfg(windows)] // Windows paths: `\` between folders, any capitals.
 fn a_text_is_renamed_with_its_journal_and_its_history() {
     let rig = Rig::new("rename");
     let (mut store, _) = rig.open();
@@ -1053,6 +1064,7 @@ fn another_text_is_rewritten_only_if_it_still_reads_as_expected() {
 }
 
 #[test]
+#[cfg(windows)] // Windows paths: `\` between folders, any capitals.
 fn a_discarded_text_is_moved_never_erased_and_never_onto_another() {
     let rig = Rig::new("discard");
     let (mut store, _) = rig.open();
@@ -1079,6 +1091,7 @@ fn a_discarded_text_is_moved_never_erased_and_never_onto_another() {
 // ------------------------------------------------------ the folder as a tree
 
 #[test]
+#[cfg(windows)] // Windows paths: `\` between folders, any capitals.
 fn the_folder_is_listed_its_texts_are_read_and_changes_outside_are_seen() {
     let rig = Rig::new("tree");
     fs::create_dir_all(rig.folder.join("College")).unwrap();
@@ -1177,6 +1190,7 @@ fn a_failing_journal_raises_the_alarm_and_typing_and_saving_go_on() {
 
 // ----------------------------------------------------------------- shutdown
 
+#[cfg(windows)]
 #[test]
 fn shutdown_returns_within_its_bound_and_what_could_not_be_saved_comes_back() {
     let rig = Rig::new("shutdown");
@@ -1212,6 +1226,7 @@ fn shutdown_returns_within_its_bound_and_what_could_not_be_saved_comes_back() {
     assert!(store.shutdown(SOON));
 }
 
+#[cfg(windows)]
 #[test]
 fn text_left_in_the_journal_at_close_is_the_text_when_it_is_opened_again() {
     let rig = Rig::new("left-in-journal");

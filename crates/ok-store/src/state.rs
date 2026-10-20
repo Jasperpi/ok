@@ -4,7 +4,7 @@
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
-use std::os::windows::fs::OpenOptionsExt;
+use crate::sys::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -86,6 +86,12 @@ pub(crate) fn take_lock(data: &Path, root: &Path, note: &str, passing: bool) -> 
     }
     match OpenOptions::new().read(true).write(true).create(true).truncate(false).share_mode(sys::SHARE_READ).open(&path) {
         Ok(mut file) => {
+            // Windows refuses the open itself while another instance holds
+            // the file; elsewhere the refusal is an advisory lock.
+            #[cfg(unix)]
+            if file.try_lock().is_err() {
+                return Err(LockFail::Held(read_owner(&path)));
+            }
             let note: String = note.chars().map(|c| if c == '\n' || c == '\r' { ' ' } else { c }).collect();
             let text = format!("pid={}\npassing={}\nnote={note}\nfolder={}\n", std::process::id(), passing as u8, root.display());
             let _ = file.set_len(0);

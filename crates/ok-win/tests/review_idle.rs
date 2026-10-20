@@ -9,6 +9,7 @@
 //!
 //! One test, alone in its file, with its parts one after another, because
 //! the hook's notes are kept in one place.
+#![cfg(windows)]
 
 mod support;
 

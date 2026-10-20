@@ -3,6 +3,7 @@
 //! This is the only test in its file, so it is the only thing running in its
 //! process: the processor time measured is the whole process's
 //! (`GetProcessTimes`), and with nothing animating it should not move.
+#![cfg(windows)]
 
 mod support;
 
