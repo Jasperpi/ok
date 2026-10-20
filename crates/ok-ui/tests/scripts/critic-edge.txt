@@ -1,0 +1,33 @@
+# Critic: double-size headings at the top and foot of the sheet at rest, the
+# cursor resting after a full row, sentences of 69 and 70 cells on the say
+# row, a long name among the facts, measures of 40 and 100.
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/tests/scripts/critic-h1s.md
+size 1920 1080
+key ctrl+home
+wheel -2
+shot ../../../../shots/critic-edge-top-half.png
+print
+wheel -1
+shot ../../../../shots/critic-edge-next.png
+print
+wheel -4
+shot ../../../../shots/critic-edge-foot.png
+print
+wheel -1
+shot ../../../../shots/critic-edge-foot2.png
+print
+say This text changed on disk. Showing the newer one; yours is in earlier.
+shot ../../../../shots/critic-say-70.png
+print
+say Enter keeps measure at 66. Esc puts it back to 72. The default is 66.
+shot ../../../../shots/critic-say-69.png
+print
+measure 40
+say Last here Tuesday at 23:41. That sitting added 388 words.
+shot ../../../../shots/critic-measure-40.png
+print
+measure 100
+say Last here Tuesday at 23:41. That sitting added 388 words.
+shot ../../../../shots/critic-measure-100.png
+print

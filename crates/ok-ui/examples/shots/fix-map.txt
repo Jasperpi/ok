@@ -1,0 +1,15 @@
+# A text of 3,000 words, whose map is at half size: the strip keeps to the
+# labels, the notch comes across with it, and the flag stays in its column
+# at its full size.
+#   cargo run -p ok-ui --example shot --offline -- crates/ok-ui/examples/shots/fix-map.txt
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/tests/scripts/critic-3000.md
+size 1920 1080
+cursor 60 0
+key end
+key enter
+type If he will not agree that the log is right, do not chase him. Put the supervisor's statement in front of him, ask him to read the second paragraph aloud, and let the jury hear him do it. TK check the exhibit number before Thursday.
+wait 12000
+shot ../../../../shots/w2-flow-map-half.png
+look sun
+shot ../../../../shots/w2-flow-map-half-sun.png

@@ -1,0 +1,32 @@
+# Critic: every kind of markup, headings of every level with ones that wrap,
+# long list items and quotes, a link under the cursor, TK.
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/tests/scripts/critic-marks.md
+size 1920 1080
+key ctrl+home
+shot ../../../../shots/critic-marks-top.png
+# The cursor inside [[Essay plan]].
+cursor 25 196
+shot ../../../../shots/critic-marks-link.png
+print
+# The cursor on the T of TK, which is inverse already.
+cursor 25 242
+shot ../../../../shots/critic-marks-tk-cursor.png
+# The cursor on the hung marks: ####, then the quote's >, then the space after it.
+cursor 8 0
+shot ../../../../shots/critic-marks-h4-cursor.png
+cursor 23 0
+shot ../../../../shots/critic-marks-quote-cursor.png
+cursor 23 1
+shot ../../../../shots/critic-marks-quote-cursor2.png
+print
+# The cursor on the wrapped first-level heading, second double row.
+cursor 0 40
+shot ../../../../shots/critic-marks-h1-cursor.png
+# Focus elsewhere: the hollow box on a double-size letter.
+focus off
+shot ../../../../shots/critic-marks-h1-hollow.png
+focus on
+key ctrl+end
+shot ../../../../shots/critic-marks-end.png
+print

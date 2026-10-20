@@ -1,0 +1,11 @@
+# Critic: 7,300 words: the map at half size, scrolling.
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/examples/texts/Cross of the detective, all of it.md
+size 1920 1080
+shot ../../../../shots/critic-map-7000-end.png
+print
+cursor 140 0
+shot ../../../../shots/critic-map-7000-mid.png
+print
+key ctrl+home
+shot ../../../../shots/critic-map-7000-top.png

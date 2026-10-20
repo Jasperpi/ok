@@ -1,0 +1,11 @@
+# Critic: a folder taller than the pane, nested folders, long names, a text
+# with more than six links each way and two that lead nowhere yet, and no
+# headings, so the labels are paragraph openers.
+folder crates/ok-ui/tests/scripts/critic-desk
+file crates/ok-ui/tests/scripts/critic-desk/Zed/Hub.md
+size 1920 1080
+shot ../../../../shots/critic-desk-end.png
+print
+key ctrl+home
+shot ../../../../shots/critic-desk-top.png
+print

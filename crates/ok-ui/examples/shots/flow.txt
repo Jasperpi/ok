@@ -1,0 +1,44 @@
+# The flow: what the screen does while he writes. The same essay as
+# essay.txt, typed at a steady pace so that the states of DESIGN.md's Flow
+# table come and go on the clock.
+#
+# Run from the top of the workspace:
+#   cargo run -p ok-ui --example shot --offline -- crates/ok-ui/examples/shots/flow.txt
+
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/examples/desk/College/The orchard.md
+size 1920 1080
+shot ../../../../shots/w2-flow-rest.png
+
+# Writing: eight characters with no gap over two seconds, and 900 ms on.
+# The contents, the label, the links and the facts are at faint.
+pace 90
+key enter
+type He let me think
+wait 900
+shot ../../../../shots/w2-flow-writing.png
+
+# A run: twenty words on. Every paragraph but his own is at half and the
+# sides are gone.
+type \sthat for about a week. Then he walked me to the one tree he had left alone on purpose, TK the year he planted it, and showed me what keeping all three looks like. The branches had split under the weight.
+wait 1500
+shot ../../../../shots/w2-flow-run.png
+
+# Enter in a run: the paragraph just finished stays in ink until he is
+# eight characters into the next.
+key enter
+type The fr
+shot ../../../../shots/w2-flow-run-enter.png
+type uit was the size of walnuts and tasted of nothing.
+wait 1500
+shot ../../../../shots/w2-flow-run-next.png
+
+# A breath: four seconds without a key. The paragraphs are back; nothing
+# else is.
+wait 4000
+wait 400
+shot ../../../../shots/w2-flow-breath.png
+
+# Settle: ten seconds without a key. Everything back.
+wait 6000
+shot ../../../../shots/w2-flow-settle.png

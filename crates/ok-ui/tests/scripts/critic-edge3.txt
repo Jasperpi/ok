@@ -1,0 +1,11 @@
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/examples/desk/College/The orchard.md
+size 1920 1080
+cursor 4 330
+key end
+shot ../../../../shots/critic-full-row-cursor.png
+print
+scale 3
+say Last here Tuesday at 23:41. That sitting added 388 words.
+shot ../../../../shots/critic-scale3-say.png
+print

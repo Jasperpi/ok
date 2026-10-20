@@ -1,0 +1,17 @@
+# Critic: a text of 3,000 words, so the map is long; then the 7,000-word one.
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/tests/scripts/critic-3000.md
+size 1920 1080
+shot ../../../../shots/critic-map-3000-end.png
+print
+key ctrl+home
+shot ../../../../shots/critic-map-3000-top.png
+cursor 60 0
+shot ../../../../shots/critic-map-3000-mid.png
+print
+# Add writing today in the middle, with a TK, to see ink and a flag in the map.
+key end
+key enter
+type If he will not agree that the log is right, do not chase him. Put the supervisor's statement in front of him, ask him to read the second paragraph aloud, and let the jury hear him do it. TK check the exhibit number before Thursday.
+shot ../../../../shots/critic-map-3000-typed.png
+print

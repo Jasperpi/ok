@@ -1,0 +1,42 @@
+# Critic: scale 2 and 3 at 1920 by 1080, then smaller windows at scale 1.
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/examples/desk/College/The orchard.md
+size 1920 1080
+key enter
+type He let me think that for about a week. Then he walked me to the one tree he had left alone on purpose, TK the year he planted it, and showed me what keeping all three looks like. The branches had split under the weight. The fruit was the size of walnuts and tasted of nothing. He did not say anything about it, which I have come to understand as a kind of teaching, the kind I got again in [[Grandfather interview]] when I asked what he would do differently and he said he would have **thinned harder**.
+key enter
+type I think about that tree whenever I am asked to add one more thing to a week that is already full. For a long time I believed the answer was to keep all three and
+say Last here Tuesday at 23:41. That sitting added 388 words.
+scale 2
+shot ../../../../shots/critic-scale2.png
+print
+key ctrl+home
+shot ../../../../shots/critic-scale2-top.png
+print
+key ctrl+end
+scale 3
+shot ../../../../shots/critic-scale3.png
+print
+key ctrl+home
+shot ../../../../shots/critic-scale3-top.png
+print
+key ctrl+end
+scale 1
+size 1600 900
+shot ../../../../shots/critic-1600x900.png
+print
+size 1366 768
+shot ../../../../shots/critic-1366x768.png
+print
+size 1280 720
+shot ../../../../shots/critic-1280x720.png
+print
+size 1024 600
+shot ../../../../shots/critic-1024x600.png
+print
+size 640 400
+shot ../../../../shots/critic-640x400.png
+print
+key ctrl+home
+shot ../../../../shots/critic-640x400-top.png
+print

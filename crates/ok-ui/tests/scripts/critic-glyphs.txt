@@ -1,0 +1,11 @@
+# Critic: characters the face may lack, wide characters, a long unbroken word, a tab pasted in.
+size 1920 1080
+type Caf\u{e9} na\u{ef}ve fa\u{e7}ade \u{2014} \u{201c}curly\u{201d} \u{2018}single\u{2019} \u{2026} \u{a1}A\u{f1}o, ni\u{f1}o, ping\u{fc}ino! \u{bf}Qu\u{e9}?
+key enter
+type Wide: \u{65e5}\u{672c}\u{8a9e}\u{306e}\u{6587}\u{7ae0} and \u{d55c}\u{ae00} and an emoji \u{1f600} and a rare one \u{1d11e} and a private one \u{e000} and \u{fffd}.
+key enter
+type Averyveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryverylongunbrokenwordthatcannotfitinsixtysixcells and after it.
+key enter
+type # Heading with wide \u{65e5}\u{672c} and a long unbrokenwordthatiswiderthanthirtythreecells here
+shot ../../../../shots/critic-glyphs.png
+print

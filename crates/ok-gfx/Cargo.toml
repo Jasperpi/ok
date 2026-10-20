@@ -1,0 +1,5 @@
+[package]
+name = "ok-gfx"
+description = "Software framebuffer, bitmap faces and PNG output for ok"
+version.workspace = true
+edition.workspace = true

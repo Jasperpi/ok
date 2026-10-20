@@ -1,0 +1,10 @@
+# A long text, where the map has grown down the side of the screen, and a
+# longer one that has outgrown the map at full size.
+#   cargo run -p ok-ui --example shot --offline -- crates/ok-ui/examples/shots/map.txt
+
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/examples/texts/Cross of the detective.md
+size 1920 1080
+key enter
+type If he will not agree that the log is right, do not chase him. Put the supervisor's statement in front of him, ask him to read the second paragraph aloud, and let the jury hear him do it. TK check the exhibit number before Thursday.
+shot shots/ui1-long-map.png

@@ -1,0 +1,8 @@
+[package]
+name = "ok-store"
+description = "The writing folder, the journal, crash-safe saving, history and recovery"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ok-text = { path = "../ok-text" }

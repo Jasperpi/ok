@@ -1,0 +1,13 @@
+# 1600 by 900: a contents pane of 21 cells and labels of 11. Names turn
+# over; nothing is cut inside a word that fits the pane.
+#   cargo run -p ok-ui --example shot --offline -- crates/ok-ui/examples/shots/fix-narrow.txt
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/examples/desk/College/The orchard.md
+size 1600 900
+key enter
+type He let me think that for about a week. Then he walked me to the one tree he had left alone on purpose, TK the year he planted it, and showed me what keeping all three looks like. The kind of teaching I got again in [[Grandfather interview]].
+wait 12000
+shot ../../../../shots/w2-flow-1600x900.png
+size 1920 1080
+look sun
+shot ../../../../shots/w2-flow-sun.png

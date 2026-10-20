@@ -1,0 +1,42 @@
+# The essay of the hand-drawn proof on a full screen, and what the screen
+# makes of it in other looks, with a selection, on its heading, at scale 2
+# and in a smaller window.
+#
+# The first two paragraphs are in the file; the rest is typed here, so it
+# carries change bars and is in ink in the map.
+#
+# Run from the top of the workspace:
+#   cargo run -p ok-ui --example shot --offline -- crates/ok-ui/examples/shots/essay.txt
+
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/examples/desk/College/The orchard.md
+size 1920 1080
+key enter
+type He let me think that for about a week. Then he walked me to the one tree he had left alone on purpose, TK the year he planted it, and showed me what keeping all three looks like. The branches had split under the weight. The fruit was the size of walnuts and tasted of nothing. He did not say anything about it, which I have come to understand as a kind of teaching, the kind I got again in [[Grandfather interview]] when I asked what he would do differently and he said he would have **thinned harder**.
+key enter
+type I think about that tree whenever I am asked to add one more thing to a week that is already full. For a long time I believed the answer was to keep all three and
+say Last here Tuesday at 23:41. That sitting added 388 words.
+shot shots/ui1-essay-manila.png
+look sun
+shot shots/ui1-essay-sun.png
+look amber
+shot shots/ui1-essay-amber.png
+
+# A selection across several paragraphs.
+look manila
+select 4 137 8 61
+shot shots/ui1-selection.png
+
+# The cursor on the double-size heading.
+cursor 0 6
+shot shots/ui1-heading-cursor.png
+
+# Scale 2 on the same screen: 80 columns by 24 rows.
+key ctrl+end
+scale 2
+shot shots/ui1-scale2.png
+
+# A 1280 by 720 window at scale 1.
+scale 1
+size 1280 720
+shot shots/ui1-1280x720.png

@@ -1,0 +1,11 @@
+[package]
+name = "ok-ui"
+description = "The interface of ok: the sheet, the contents, the map, the line"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ok-gfx = { path = "../ok-gfx" }
+ok-text = { path = "../ok-text" }
+ok-host = { path = "../ok-host" }
+ok-store = { path = "../ok-store" }

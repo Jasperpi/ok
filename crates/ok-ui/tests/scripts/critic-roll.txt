@@ -1,0 +1,22 @@
+# Critic: the paper rolling. Enter at the platen, then a frame at a time.
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/examples/texts/Cross of the detective.md
+size 1920 1080
+type  A few more words typed at the platen
+shot ../../../../shots/critic-roll-0.png
+key enter
+shot ../../../../shots/critic-roll-1.png
+wait 16
+shot ../../../../shots/critic-roll-2.png
+wait 16
+shot ../../../../shots/critic-roll-3.png
+wait 16
+shot ../../../../shots/critic-roll-4.png
+wait 16
+shot ../../../../shots/critic-roll-5.png
+print
+type and now a line that is typed until it wraps at the platen so that the paper has to climb
+shot ../../../../shots/critic-roll-6.png
+wait 100
+shot ../../../../shots/critic-roll-7.png
+print

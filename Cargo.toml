@@ -1,0 +1,32 @@
+[workspace]
+members = ["crates/ok-gfx", "crates/ok-text", "crates/ok-host", "crates/ok-win", "crates/ok-store", "crates/ok-ui"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+
+# No third-party crates anywhere in this workspace. Win32 is declared by hand.
+
+[package]
+name = "ok"
+description = "A writing tool: one sheet of Gallant, and a machine that says ok when your words are on disk"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ok-gfx = { path = "crates/ok-gfx" }
+ok-host = { path = "crates/ok-host" }
+ok-ui ={ path = "crates/ok-ui" }
+ok-win = { path = "crates/ok-win" }
+
+[profile.release]
+opt-level = 3
+codegen-units = 1
+strip = true
+lto = true
+# lto takes the .exe from about 1.4 MB to about 0.8 MB. It links cleanly in
+# this folder. It failed once in a scratch folder under AppData\Roaming, where
+# Windows Defender held rustc's temporary archives open (os error 32): if that
+# ever shows up here, build again or point CARGO_TARGET_DIR somewhere else.
+# panic stays "unwind" so a panic can be caught and the last save attempted.

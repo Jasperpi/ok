@@ -1,0 +1,6 @@
+# Critic: the cursor resting after a full row (column 113), and a long name among the facts.
+folder crates/ok-ui/tests/scripts/critic-desk
+file crates/ok-ui/tests/scripts/critic-desk/A very long title that will certainly not fit in the contents pane.md
+size 1920 1080
+shot ../../../../shots/critic-long-name.png
+print

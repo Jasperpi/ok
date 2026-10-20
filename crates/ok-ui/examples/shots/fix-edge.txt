@@ -1,0 +1,18 @@
+# Headings at the top of the sheet under the wheel, and long sentences on
+# the say row.
+#   cargo run -p ok-ui --example shot --offline -- crates/ok-ui/examples/shots/fix-edge.txt
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/tests/scripts/critic-h1s.md
+size 1920 1080
+key ctrl+home
+wheel -28
+shot ../../../../shots/w2-flow-edge-top.png
+wheel -1
+shot ../../../../shots/w2-flow-edge-next.png
+say This text changed on disk. Showing the newer one; yours is in earlier.
+shot ../../../../shots/w2-flow-say-70.png
+say Enter keeps measure at 66. Esc puts it back to 72. The default is 66.
+shot ../../../../shots/w2-flow-say-69.png
+measure 40
+say Last here Tuesday at 23:41. That sitting added 388 words.
+shot ../../../../shots/w2-flow-say-measure-40.png

@@ -1,0 +1,24 @@
+# Every kind of markup, with the cursor where the critic put it: inside a
+# link, on the T of a TK, on the marks of headings and of a quote.
+#   cargo run -p ok-ui --example shot --offline -- crates/ok-ui/examples/shots/fix-marks.txt
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/tests/scripts/critic-marks.md
+size 1920 1080
+key ctrl+home
+wheel -26
+shot ../../../../shots/w2-flow-marks-top.png
+# The cursor inside [[Essay plan]].
+cursor 25 196
+shot ../../../../shots/w2-flow-marks-link.png
+# The cursor on the T of TK, which is inverse already.
+cursor 25 242
+shot ../../../../shots/w2-flow-marks-tk-cursor.png
+# The cursor on the K.
+cursor 25 243
+shot ../../../../shots/w2-flow-marks-tk-cursor-k.png
+# On the first mark of ####, which no longer hangs into the edge of the sheet.
+cursor 8 0
+shot ../../../../shots/w2-flow-marks-h4-cursor.png
+# On the space after the quote's mark: not on the change bars' column.
+cursor 23 1
+shot ../../../../shots/w2-flow-marks-quote-cursor.png

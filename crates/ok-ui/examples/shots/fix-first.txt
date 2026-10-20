@@ -1,0 +1,15 @@
+# First run, as the critic looked at it: an empty text, then one line, then
+# two paragraphs. The cursor sits on the platen with bare paper above, and
+# an empty text has no map.
+#   cargo run -p ok-ui --example shot --offline -- crates/ok-ui/examples/shots/fix-first.txt
+folder crates/ok-ui/examples/desk
+size 1920 1080
+say Start typing. Each word is saved as you finish it.
+shot ../../../../shots/w2-flow-first-empty.png
+type The first line he finishes names the text.
+wait 12000
+shot ../../../../shots/w2-flow-first-typed.png
+key enter
+type A second paragraph, and a link to [[Grandfather interview]], one to [[Rebuttal notes]] which has not been started, and a TK.
+wait 12000
+shot ../../../../shots/w2-flow-first-two.png

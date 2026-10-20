@@ -1,0 +1,9 @@
+# A list inside a quote keeps its hang, and the cursor never rests on the
+# change bars' column.
+#   cargo run -p ok-ui --example shot --offline -- crates/ok-ui/examples/shots/fix-odd.txt
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/tests/scripts/critic-odd.md
+size 1920 1080
+key ctrl+home
+wheel -26
+shot ../../../../shots/w2-flow-odd.png

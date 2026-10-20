@@ -1,0 +1,17 @@
+# Critic: first run. An empty text: where is the cursor? DESIGN.md says on the platen (row 28).
+folder crates/ok-ui/examples/desk
+size 1920 1080
+say Start typing. Each word is saved as you finish it.
+shot ../../../../shots/critic-first-empty.png
+print
+type The first line he finishes names the text.
+shot ../../../../shots/critic-first-typed.png
+print
+key enter
+type A second paragraph, and a link to [[Grandfather interview]], one to [[Rebuttal notes]] which has not been started, and a TK.
+shot ../../../../shots/critic-first-two.png
+print
+# Past 04:00 the next morning nothing on the page was written today.
+time 2026-10-12 04:01
+tick
+shot ../../../../shots/critic-first-nextday.png

@@ -1,0 +1,29 @@
+# Critic: what the keys that belong to the unfilled seams do on screen today.
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/examples/desk/College/The orchard.md
+size 1920 1080
+key esc
+shot ../../../../shots/critic-seam-esc.png
+print
+key f1
+print
+key ctrl+s
+print
+key ctrl+f
+print
+key ctrl+t
+print
+key ctrl+c
+print
+key tab
+print
+# Typing changes the text; is ok still printed?
+type x
+print
+# A click on a row of the contents (Essay plan, row 2).
+click cell 8 2
+print
+# A click on the map goes there; a click on a label.
+click cell 125 2
+shot ../../../../shots/critic-seam-mapclick.png
+print

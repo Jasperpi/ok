@@ -1,0 +1,9 @@
+[package]
+name = "ok-win"
+description = "The Win32 window shell: one window, a framebuffer, hand-declared FFI"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ok-gfx = { path = "../ok-gfx" }
+ok-host = { path = "../ok-host" }

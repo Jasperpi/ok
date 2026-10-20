@@ -1,0 +1,8 @@
+[package]
+name = "ok-host"
+description = "What the window shell and the interface say to each other"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ok-gfx = { path = "../ok-gfx" }

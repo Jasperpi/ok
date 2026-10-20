@@ -1,0 +1,5 @@
+[package]
+name = "ok-text"
+description = "The text core of ok: document, undo, prose motions, wrapping, markup, links"
+version.workspace = true
+edition.workspace = true

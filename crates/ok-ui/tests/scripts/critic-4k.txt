@@ -1,0 +1,9 @@
+# Critic: scale 2 on a 3840 by 2160 screen, where the sides have room: the map, notch, flags and bars at twice the size.
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/examples/desk/College/The orchard.md
+size 3840 2160
+scale 2
+key enter
+type He let me think that for about a week. Then he walked me to the one tree he had left alone on purpose, TK the year he planted it.
+say Last here Tuesday at 23:41. That sitting added 388 words.
+shot ../../../../shots/critic-4k-scale2.png

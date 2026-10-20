@@ -1,0 +1,9 @@
+# A text past 253 rows: the map is drawn once at half size, and past twice
+# that it scrolls to keep the notch in view.
+#   cargo run -p ok-ui --example shot --offline -- crates/ok-ui/examples/shots/map-small.txt
+
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/examples/texts/Cross of the detective, all of it.md
+size 1920 1080
+cursor 60 0
+shot shots/ui1-long-map-small.png

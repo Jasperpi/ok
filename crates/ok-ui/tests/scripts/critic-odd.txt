@@ -1,0 +1,10 @@
+# Critic: odd marks, and a quote written today with the cursor on the space after its mark.
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/tests/scripts/critic-odd.md
+size 1920 1080
+type > A quote written today, with the cursor put on the space after its mark
+key enter
+type ### A third-level heading written today
+cursor 19 1
+shot ../../../../shots/critic-odd.png
+print

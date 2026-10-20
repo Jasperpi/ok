@@ -1,0 +1,11 @@
+# Every kind of markup the sheet knows, with the cursor inside a link.
+# The wheel brings the head of the text back onto the sheet after the
+# cursor's row has been taken to the platen.
+#   cargo run -p ok-ui --example shot --offline -- crates/ok-ui/examples/shots/markup.txt
+
+folder crates/ok-ui/examples/desk
+file crates/ok-ui/examples/texts/Every mark.md
+size 1920 1080
+cursor 18 197
+wheel 5
+shot shots/ui1-markup.png
