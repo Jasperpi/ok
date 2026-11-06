@@ -571,6 +571,10 @@ impl Store {
                 // crashed session's text here and has the folder for that
                 // moment. It is not a window to hand over to: wait it out.
                 Err(state::LockFail::Held(owner)) if owner.passing && asked.elapsed() < LOCK_WAIT => std::thread::sleep(Duration::from_millis(5)),
+                // Elsewhere a lock is a request the system keeps, and its
+                // holder may be ending or just starting: one that is not a
+                // running program yet, or no longer, is waited out.
+                Err(state::LockFail::Held(owner)) if !sys::alive(owner.pid) && asked.elapsed() < LOCK_WAIT => std::thread::sleep(Duration::from_millis(10)),
                 Err(state::LockFail::Held(owner)) => return Err(OpenError::Locked(owner)),
                 Err(state::LockFail::Io(code)) => return Err(OpenError::Data(code)),
             }

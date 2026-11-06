@@ -39,6 +39,14 @@ pub(crate) struct Lock {
     _file: File,
 }
 
+impl Drop for Lock {
+    /// The holder's details are cleared as it lets go, so that whoever
+    /// reads the file next never takes an old holder for the present one.
+    fn drop(&mut self) {
+        let _ = self._file.set_len(0);
+    }
+}
+
 pub(crate) enum LockFail {
     Held(Owner),
     Io(u32),

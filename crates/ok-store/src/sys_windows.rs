@@ -392,6 +392,12 @@ pub(crate) fn local_fields(unix_ms: u64) -> (u16, u8, u8, u8, u8, u8) {
     }
 }
 
+/// Whether a lock's holder is running is never in question here: Windows
+/// refuses the lock only to a program that holds it open.
+pub(crate) fn alive(_pid: u32) -> bool {
+    true
+}
+
 /// Opens a folder for listing, used as the hint for [`open_by_id`].
 pub(crate) fn open_dir(path: &Path) -> io::Result<File> {
     OpenOptions::new().access_mode(FILE_LIST_DIRECTORY).share_mode(SHARE_ALL).custom_flags(FLAG_BACKUP_SEMANTICS).open(path)

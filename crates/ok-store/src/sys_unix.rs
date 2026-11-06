@@ -68,6 +68,13 @@ extern "C" {
     fn renamex_np(from: *const c_char, to: *const c_char, flags: u32) -> c_int;
     #[cfg(target_os = "macos")]
     fn fcntl(fd: c_int, cmd: c_int, ...) -> c_int;
+    fn kill(pid: c_int, signal: c_int) -> c_int;
+}
+
+/// True when a program with this id is running. Zero is no program.
+pub(crate) fn alive(pid: u32) -> bool {
+    // SAFETY: signal 0 only asks whether the process exists.
+    pid != 0 && i32::try_from(pid).is_ok_and(|pid| unsafe { kill(pid, 0) } == 0 || io::Error::last_os_error().raw_os_error() == Some(1))
 }
 
 /// The options Windows takes when opening a file, mapped onto what these
