@@ -53,17 +53,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: rustup toolchain install stable --profile minimal && rustup default stable
-      - run: cargo build --release
+      - run: rustup target add x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
+      # Built against glibc 2.17, so it runs on every distribution from
+      # 2014 on, for PCs and for ARM boards alike.
+      - run: pip install ziglang cargo-zigbuild
+      - run: cargo zigbuild --release --target x86_64-unknown-linux-gnu.2.17
+      - run: cargo zigbuild --release --target aarch64-unknown-linux-gnu.2.17
       - run: |
-          mkdir -p ok
-          cp target/release/ok packaging/linux/ok.desktop packaging/linux/INSTALL.txt ok/
-          target/release/ok --icons icons
-          cp icons/icon_256x256.png ok/ok.png
-          tar czf ok-linux-x64.tar.gz ok
+          sudo apt-get update -q && sudo apt-get install -yq rpm
+          curl -fsSL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          curl -fsSL -o runtime-x86_64 https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64
+          curl -fsSL -o runtime-aarch64 https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-aarch64
+          chmod +x appimagetool
+      - run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          case "$VERSION" in [0-9]*) ;; *) VERSION=0.0.0 ;; esac
+          # The x86-64 build draws the icons for both, and proves it runs.
+          target/x86_64-unknown-linux-gnu/release/ok --icons icons
+          export APPIMAGETOOL="$PWD/appimagetool"
+          APPIMAGE_RUNTIME="$PWD/runtime-x86_64" sh packaging/linux/package.sh target/x86_64-unknown-linux-gnu/release/ok x86_64 "$VERSION" out icons
+          APPIMAGE_RUNTIME="$PWD/runtime-aarch64" sh packaging/linux/package.sh target/aarch64-unknown-linux-gnu/release/ok aarch64 "$VERSION" out icons
+          cp packaging/linux/install.sh out/
+          # Renamed without the version, so the latest is always at one address.
+          mv out/ok_*_amd64.deb out/ok-linux-x86_64.deb
+          mv out/ok_*_arm64.deb out/ok-linux-aarch64.deb
+          mv out/ok-*.x86_64.rpm out/ok-linux-x86_64.rpm
+          mv out/ok-*.aarch64.rpm out/ok-linux-aarch64.rpm
+          ls -la out
       - uses: actions/upload-artifact@v4
         with:
           name: linux
-          path: ok-linux-x64.tar.gz
+          path: out/*
 
   macos:
     needs: test

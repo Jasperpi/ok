@@ -1,2 +1,3 @@
 assets/fonts/** -text
 assets/NOTICES.txt text eol=lf
+*.sh text eol=lf
