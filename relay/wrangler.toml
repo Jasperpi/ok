@@ -8,6 +8,13 @@ name = "ok-relay"
 main = "src/index.js"
 compatibility_date = "2026-10-01"
 
+# The phone opens the page at ok.jaspermeller.com over HTTPS. The computer
+# connects to ok-relay.jaspermeller.workers.dev over plain HTTP, which a
+# custom domain may redirect away; what it says is sealed either way.
+workers_dev = true
+preview_urls = false
+routes = [{ pattern = "ok.jaspermeller.com", custom_domain = true }]
+
 [assets]
 directory = "./public"
 binding = "ASSETS"

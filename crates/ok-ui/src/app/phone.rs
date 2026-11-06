@@ -15,8 +15,8 @@ use super::{text_of, App};
 /// this computer connects to. `OK_RELAY_PAGE` and `OK_RELAY_DESK` stand in
 /// for them, to try another relay.
 fn relay() -> Option<Relay> {
-    const PAGE: &str = "";
-    const DESK: &str = "";
+    const PAGE: &str = "ok.jaspermeller.com";
+    const DESK: &str = "ok-relay.jaspermeller.workers.dev";
     let page = std::env::var("OK_RELAY_PAGE").unwrap_or_else(|_| PAGE.to_string());
     let desk = std::env::var("OK_RELAY_DESK").unwrap_or_else(|_| DESK.to_string());
     (!page.is_empty() && !desk.is_empty()).then_some(Relay { page, desk })
