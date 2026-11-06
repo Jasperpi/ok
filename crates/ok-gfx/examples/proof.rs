@@ -4,7 +4,7 @@
 
 use ok_gfx::{encode_png, BitmapFont, Frame, Pen, Rect, Rgb};
 
-const GALLANT: &str = include_str!("../../../assets/fonts/gallant/gallant.hex");
+const GALLANT: &str = include_str!("../fonts/gallant/gallant.hex");
 const CW: i32 = 12;
 const CH: i32 = 22;
 const TOP: i32 = 1;

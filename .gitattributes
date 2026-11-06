@@ -1,3 +1,3 @@
-assets/fonts/** -text
-assets/NOTICES.txt text eol=lf
+crates/ok-gfx/fonts/** -text
+crates/ok-ui/NOTICES.txt text eol=lf
 *.sh text eol=lf

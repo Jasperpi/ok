@@ -13,9 +13,9 @@ use std::panic::{catch_unwind, UnwindSafe};
 
 use ok_gfx::{BitmapFont, FaceSet, FontError, Frame, Pen, Rgb};
 
-const GALLANT_HEX: &str = include_str!("../../../assets/fonts/gallant/gallant.hex");
-const SPLEEN_BDF: &str = include_str!("../../../assets/fonts/spleen/spleen-12x24.bdf");
-const TERMINUS_BDF: &str = include_str!("../../../assets/fonts/terminus/ter-u22n.bdf");
+const GALLANT_HEX: &str = include_str!("../fonts/gallant/gallant.hex");
+const SPLEEN_BDF: &str = include_str!("../fonts/spleen/spleen-12x24.bdf");
+const TERMINUS_BDF: &str = include_str!("../fonts/terminus/ter-u22n.bdf");
 
 /// Marsaglia's xorshift, 64 bits of state.
 struct Rng(u64);

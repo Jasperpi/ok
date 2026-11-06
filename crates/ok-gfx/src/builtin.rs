@@ -7,12 +7,12 @@ use crate::font::BitmapFont;
 /// `gallant.hex`, checked and packed by the build script.
 static GALLANT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/gallant.bin"));
 
-static SPLEEN: &str = include_str!("../../../assets/fonts/spleen/spleen-12x24.bdf");
+static SPLEEN: &str = include_str!("../fonts/spleen/spleen-12x24.bdf");
 
 /// Terminus is kept as the exact bytes of its BDF and read at run time. Its
 /// licence reserves the name "Terminus Font" for unmodified copies, and a
 /// table converted at build time would be a modified one.
-static TERMINUS: &str = include_str!("../../../assets/fonts/terminus/ter-u22n.bdf");
+static TERMINUS: &str = include_str!("../fonts/terminus/ter-u22n.bdf");
 
 /// A face that failed to load is replaced by one with no glyphs, which
 /// draws every character as its hex box: plainly wrong on screen, and the
@@ -46,11 +46,11 @@ pub fn terminus() -> &'static BitmapFont {
 /// travels is a lone .exe, so the notices screen prints these.
 pub fn face_notices() -> &'static [(&'static str, &'static str)] {
     &[
-        ("Gallant, Unicode extension", include_str!("../../../assets/fonts/gallant/LICENSE")),
-        ("Gallant, as shipped in FreeBSD", include_str!("../../../assets/fonts/gallant/LICENSE.FreeBSD")),
-        ("Gallant, the original Sun console face in 4.4BSD", include_str!("../../../assets/fonts/gallant/LICENSE.Berkeley")),
-        ("Spleen", include_str!("../../../assets/fonts/spleen/LICENSE")),
-        ("Terminus Font", include_str!("../../../assets/fonts/terminus/OFL.TXT")),
+        ("Gallant, Unicode extension", include_str!("../fonts/gallant/LICENSE")),
+        ("Gallant, as shipped in FreeBSD", include_str!("../fonts/gallant/LICENSE.FreeBSD")),
+        ("Gallant, the original Sun console face in 4.4BSD", include_str!("../fonts/gallant/LICENSE.Berkeley")),
+        ("Spleen", include_str!("../fonts/spleen/LICENSE")),
+        ("Terminus Font", include_str!("../fonts/terminus/OFL.TXT")),
     ]
 }
 
@@ -60,7 +60,7 @@ mod tests {
 
     #[test]
     fn terminus_is_embedded_byte_for_byte() {
-        let on_disk = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../../assets/fonts/terminus/ter-u22n.bdf")).unwrap();
+        let on_disk = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/fonts/terminus/ter-u22n.bdf")).unwrap();
         assert_eq!(TERMINUS.as_bytes(), &on_disk[..]);
         assert_eq!(on_disk.len(), 267_801);
     }

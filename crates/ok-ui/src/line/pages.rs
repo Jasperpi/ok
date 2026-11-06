@@ -72,7 +72,7 @@ phone                   A code for the phone: what you type or
 quit                    Leaves.";
 
 /// The licences of the faces and the code inside the .exe.
-const NOTICES: &str = include_str!("../../../../assets/NOTICES.txt");
+const NOTICES: &str = include_str!("../../NOTICES.txt");
 
 /// What goes above the notices on the page: a fence that is never closed,
 /// which makes every line under it code, so that nothing in a licence is

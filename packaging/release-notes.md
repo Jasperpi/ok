@@ -20,7 +20,20 @@ On a Mac, Cmd does what Ctrl does on Windows, Option with an arrow moves by word
 
 ## Linux
 
-Download `ok-linux-x64.tar.gz`, unpack it, and run `./ok`. `INSTALL.txt` inside says how to add it to your applications menu. It needs an X11 or Wayland desktop.
+For any distribution, on a PC (x86-64) or ARM (a Raspberry Pi, say):
+
+- Ubuntu, Debian, Mint: `ok-linux-x86_64.deb` or `ok-linux-aarch64.deb`, then `sudo apt install ./ok-linux-x86_64.deb`.
+- Fedora, openSUSE: `ok-linux-x86_64.rpm` or `ok-linux-aarch64.rpm`, then `sudo dnf install ./ok-linux-x86_64.rpm`.
+- Anything else: the `.AppImage`, made runnable with `chmod +x`.
+- Or one command, for you alone: `curl -fsSL https://jasperpi.github.io/ok/install.sh | sh`
+
+It needs an X11 or Wayland desktop.
+
+## Your phone
+
+In ok press Esc, type `phone`, and scan a code with the phone's camera. The left code goes through the relay and has a microphone; the right one goes straight to the computer over the Wi-Fi. Android works now; iPhone is next.
+
+The install wizard at https://jasperpi.github.io/ok/ walks through all of this.
 
 ## What is in it
 

@@ -31,7 +31,7 @@ const DOUBLE: usize = 88;
 
 fn main() {
     let dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR");
-    let source = Path::new(&dir).join("../../assets/fonts/gallant/gallant.hex");
+    let source = Path::new(&dir).join("fonts/gallant/gallant.hex");
     println!("cargo:rerun-if-changed={}", source.display());
     println!("cargo:rerun-if-changed=build.rs");
     let text = fs::read_to_string(&source).unwrap_or_else(|e| panic!("{}: {e}", source.display()));

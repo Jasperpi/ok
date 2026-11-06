@@ -6,7 +6,7 @@ use ok_gfx::{BitmapFont, Frame, Pen, Rect, Rgb};
 use ok_host::{Event, Host, Key, Mods, MouseKind, Program, Wants};
 use ok_win::{Icon, Options, SelfTest, Step};
 
-const GALLANT: &str = include_str!("../../../../assets/fonts/gallant/gallant.hex");
+const GALLANT: &str = include_str!("../../../ok-gfx/fonts/gallant/gallant.hex");
 
 pub const PAPER: Rgb = Rgb(0xEE, 0xE3, 0xC8);
 pub const INK: Rgb = Rgb(0x24, 0x1E, 0x19);

@@ -14,9 +14,9 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 
 use ok_gfx::{gallant, spleen, terminus, AlphaGlyph, BitmapFont, FaceSet, Frame, OutlineFace, Pen, Rect, Rgb};
 
-const GALLANT_HEX: &str = include_str!("../../../assets/fonts/gallant/gallant.hex");
-const SPLEEN_BDF: &str = include_str!("../../../assets/fonts/spleen/spleen-12x24.bdf");
-const TERMINUS_BDF: &str = include_str!("../../../assets/fonts/terminus/ter-u22n.bdf");
+const GALLANT_HEX: &str = include_str!("../fonts/gallant/gallant.hex");
+const SPLEEN_BDF: &str = include_str!("../fonts/spleen/spleen-12x24.bdf");
+const TERMINUS_BDF: &str = include_str!("../fonts/terminus/ter-u22n.bdf");
 
 const INK: Rgb = Rgb(255, 255, 255);
 const GROUND: Rgb = Rgb(0, 0, 0);

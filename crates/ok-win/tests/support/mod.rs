@@ -36,7 +36,7 @@ struct Glyphs {
 fn glyphs() -> &'static Glyphs {
     static GLYPHS: OnceLock<Glyphs> = OnceLock::new();
     GLYPHS.get_or_init(|| {
-        let source = include_str!("../../../../assets/fonts/gallant/gallant.hex");
+        let source = include_str!("../../../ok-gfx/fonts/gallant/gallant.hex");
         let face = BitmapFont::from_hex("Gallant", source).expect("Gallant parses");
         let white = Rgb(255, 255, 255);
         let mut by_mask = HashMap::new();

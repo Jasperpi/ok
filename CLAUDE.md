@@ -68,11 +68,23 @@ cargo run -p ok-gfx --example specimen --release --offline -- shots/specimen.png
 Releases are built by `.github/workflows/release.yml`: push a tag such as
 `v0.2.0` and it tests on macOS and Linux, builds all three systems, and puts
 `ok-windows-x64.exe`, `ok-macos.zip` (one app for Apple silicon and Intel)
-and `ok-linux-x64.tar.gz` on the release, with `packaging/release-notes.md`
-as its text.
+and, for Linux on x86-64 and ARM, an AppImage, a `.deb`, an `.rpm` and a
+tarball (`packaging/linux/package.sh`, built against glibc 2.17 so every
+distribution runs it) on the release, with `packaging/release-notes.md` as
+its text. The README links to them under `releases/latest/download/`, so
+their names must not change.
+
+The install wizard is `site/index.html`, published to
+https://jasperpi.github.io/ok/ by `.github/workflows/site.yml` with the
+font, the icon and `packaging/linux/install.sh`.
+
+The phone link is `crates/ok-link` (the page is `crates/ok-link/page/
+phone.html`); the relay it uses is the Worker in `relay/`, deployed with
+`npm run deploy` from that folder. Its address is set in
+`crates/ok-ui/src/app/phone.rs`.
 
 ## Faces
 
-`assets/fonts/gallant/gallant.hex` is from the FreeBSD source tree
+`crates/ok-gfx/fonts/gallant/gallant.hex` is from the FreeBSD source tree
 (`share/vt/fonts/gallant.hex`). Each built-in face sits in its own folder with
 its licence beside it.

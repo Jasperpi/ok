@@ -3,7 +3,7 @@
 
 use ok_gfx::{encode_png, BitmapFont, Frame, Pen, Rect, Rgb};
 
-const GALLANT: &str = include_str!("../../../assets/fonts/gallant/gallant.hex");
+const GALLANT: &str = include_str!("../fonts/gallant/gallant.hex");
 
 fn text(frame: &mut Frame, font: &BitmapFont, x: i32, y: i32, s: &str, pen: Pen) {
     let cell = font.cell().0 as i32 * pen.scale as i32;

@@ -1,0 +1,496 @@
+<!doctype html>
+<!--
+ok, the install wizard (served by GitHub Pages from site/)
+Thesis: the installer is ok's own line asking you questions: a sheet on
+  the walnut desk, answers listed as ok lists texts, the inverse bar on the
+  one you are on, and the machine line at the foot filling in with what you
+  chose.
+Palette: ok's default look, manila, from DESIGN.md:
+  --paper EEE3C8 (cream typing sheet), --ink 221F1B (black fabric ribbon),
+  --desk 35251A (stained walnut desk), --desk-ink E6D9BA (what is printed on
+  the desk); half and faint are 65 and 35 percent of the way to the ink.
+Type: Gallant 12x22, Sun's console face, built from ok's bitmap into a font
+  by ok-link (gallant.ttf, copied in by the Pages workflow). Monospace here
+  is the subject, not decoration: it is the face the program types in.
+Signature: the bar. Up and Down move it, Enter takes it, a tap does both.
+Facts: every download is an address under releases/latest/download, in
+  FILES below; change a name there and nowhere else.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#35251A">
+<title>Install ok</title>
+<meta name="description" content="Get ok, a writing program, onto your computer and your phone.">
+<link rel="icon" href="icon.png">
+<style>
+@font-face {
+  font-family: "ok Gallant";
+  src: url("gallant.ttf") format("truetype");
+  font-display: block;
+}
+:root {
+  --paper: #EEE3C8;
+  --ink: #221F1B;
+  --desk: #35251A;
+  --desk-ink: #E6D9BA;
+  --half: color-mix(in srgb, var(--ink) 65%, var(--paper));
+  --faint: color-mix(in srgb, var(--ink) 35%, var(--paper));
+  --desk-half: color-mix(in srgb, var(--desk-ink) 65%, var(--desk));
+  --cell: 12px;
+  --row: 22px;
+}
+* { box-sizing: border-box; }
+html {
+  background: var(--desk);
+  color: var(--ink);
+  font: 22px/22px "ok Gallant", ui-monospace, "Courier New", monospace;
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: calc(var(--row) * 2) 16px;
+}
+.sheet {
+  width: min(100%, calc(var(--cell) * 72));
+  background: var(--paper);
+  padding: calc(var(--row) * 2) calc(var(--cell) * 3) var(--row);
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - var(--row) * 4);
+}
+@media (max-width: 600px) {
+  body { padding: var(--row) 0; }
+  .sheet { padding: var(--row) var(--cell); min-height: calc(100vh - var(--row) * 2); }
+}
+h1, h2, p, ol, ul { margin: 0; font: inherit; }
+h1 {
+  /* ok sets a heading at double size: each pixel of Gallant made two. */
+  font-size: 44px;
+  line-height: 44px;
+  margin-bottom: var(--row);
+}
+.answer { flex: 1 1 auto; }
+.answer > * + * { margin-top: var(--row); }
+.say { color: var(--half); }
+a { color: var(--ink); text-underline-offset: 4px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* The choices, as ok lists texts: the name, dotted leaders, a note. */
+.choices { list-style: none; padding: 0; }
+.choices button {
+  display: flex;
+  width: 100%;
+  gap: var(--cell);
+  padding: 0 var(--cell);
+  min-height: calc(var(--row) * 2);
+  align-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.choices .name { white-space: nowrap; }
+.choices .dots {
+  flex: 1 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+  color: var(--faint);
+}
+.choices .dots::after { content: " ................................................................................................"; }
+.choices .note { color: var(--half); white-space: nowrap; }
+.choices button[aria-current="true"] { background: var(--ink); color: var(--paper); }
+.choices button[aria-current="true"] .dots, .choices button[aria-current="true"] .note { color: var(--paper); }
+@media (max-width: 600px) {
+  .choices .dots, .choices .note { display: none; }
+}
+
+.steps { padding-left: calc(var(--cell) * 3); }
+.steps li + li { margin-top: calc(var(--row) / 2); }
+.steps li::marker { color: var(--half); }
+
+/* A command to type, with a key to copy it. */
+.command {
+  display: flex;
+  gap: var(--cell);
+  align-items: stretch;
+  margin-top: calc(var(--row) / 2);
+}
+.command code {
+  flex: 1 1 auto;
+  font: inherit;
+  background: var(--ink);
+  color: var(--paper);
+  padding: calc(var(--row) / 2) var(--cell);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.key {
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  padding: 0 var(--cell);
+  min-height: calc(var(--row) * 2);
+  cursor: pointer;
+}
+.key:active { background: var(--ink); color: var(--paper); }
+.download {
+  display: inline-block;
+  background: var(--ink);
+  color: var(--paper);
+  text-decoration: none;
+  padding: calc(var(--row) / 2) calc(var(--cell) * 2);
+}
+.download:hover { text-decoration: underline; }
+
+/* The foot: the line, and the machine line with what was chosen. */
+.foot { margin-top: calc(var(--row) * 2); }
+.moves { display: flex; gap: var(--cell); flex-wrap: wrap; }
+.machine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 calc(var(--cell) * 3);
+  margin-top: var(--row);
+  color: var(--half);
+}
+.machine .ok { color: var(--ink); }
+#facts { display: contents; }
+.cursor {
+  display: inline-block;
+  width: var(--cell);
+  height: var(--row);
+  vertical-align: top;
+  background: var(--ink);
+  animation: blink 1.06s steps(1) infinite;
+}
+@keyframes blink { 50% { background: transparent; } }
+@media (prefers-reduced-motion: reduce) {
+  .cursor { animation: none; }
+}
+</style>
+</head>
+<body>
+<main class="sheet" id="sheet">
+  <h1 id="title">ok</h1>
+  <section class="answer" id="answer" aria-live="polite"></section>
+  <div class="foot">
+    <div class="moves" id="moves"></div>
+    <p class="machine" id="machine"><span class="ok">ok</span><span id="facts"></span><span class="cursor" aria-hidden="true"></span></p>
+  </div>
+</main>
+<script>
+"use strict";
+// Every download, by the name it has on the latest release.
+const RELEASES = "https://github.com/Jasperpi/ok/releases/latest/download/";
+const FILES = {
+  windows: "ok-windows-x64.exe",
+  mac: "ok-macos.zip",
+  deb: (arch) => `ok-linux-${arch}.deb`,
+  rpm: (arch) => `ok-linux-${arch}.rpm`,
+  appimage: (arch) => `ok-linux-${arch}.AppImage`,
+  tarball: (arch) => `ok-linux-${arch}.tar.gz`,
+};
+const INSTALL = "curl -fsSL https://jasperpi.github.io/ok/install.sh | sh";
+
+const chosen = { computer: null, linux: null, arch: null, phone: null };
+let step = "welcome";
+const trail = [];
+
+// What this browser says it is running on, to put the bar on first.
+function guess() {
+  const ua = navigator.userAgent;
+  const platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
+  const computer = /Win/i.test(platform) || /Windows/.test(ua) ? "windows"
+    : /Mac/i.test(platform) && !/iPhone|iPad/.test(ua) ? "mac"
+    : /Linux|X11|CrOS/i.test(platform + ua) && !/Android/.test(ua) ? "linux" : null;
+  const arch = /aarch64|arm64|armv8/i.test(ua + platform) ? "aarch64" : "x86_64";
+  const phone = /Android/.test(ua) ? "android" : /iPhone|iPad/.test(ua) ? "iphone" : null;
+  return { computer, arch, phone };
+}
+const guessed = guess();
+if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+  navigator.userAgentData.getHighEntropyValues(["architecture", "bitness"]).then((v) => {
+    if (v.architecture === "arm") guessed.arch = "aarch64";
+  }).catch(() => {});
+}
+
+const $ = (id) => document.getElementById(id);
+function el(tag, attrs, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class") node.className = v;
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v);
+  }
+  for (const child of children.flat()) {
+    if (child == null || child === false) continue;
+    node.append(child.nodeType ? child : document.createTextNode(String(child)));
+  }
+  return node;
+}
+
+// ------------------------------------------------------------- the pieces
+let bar = 0;
+let choices = [];
+
+function list(options, pick, preferred) {
+  choices = options;
+  bar = Math.max(0, options.findIndex((o) => o.value === preferred));
+  const ul = el("ul", { class: "choices", role: "listbox", "aria-label": "Choices" });
+  options.forEach((option, i) => {
+    const button = el("button", {
+      type: "button",
+      role: "option",
+      "aria-current": i === bar ? "true" : "false",
+      onclick: () => pick(option.value),
+      onmouseenter: () => mark(i),
+    }, el("span", { class: "name" }, option.name), el("span", { class: "dots", "aria-hidden": "true" }), el("span", { class: "note" }, option.note || ""));
+    ul.append(el("li", {}, button));
+  });
+  list.pick = pick;
+  return ul;
+}
+
+function mark(i) {
+  bar = i;
+  document.querySelectorAll(".choices button").forEach((b, j) => b.setAttribute("aria-current", j === i ? "true" : "false"));
+}
+
+function command(text) {
+  const copy = el("button", { type: "button", class: "key" }, "Copy");
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      copy.textContent = "Copied";
+    } catch {
+      copy.textContent = "Select it";
+    }
+    setTimeout(() => { copy.textContent = "Copy"; }, 1800);
+  });
+  return el("div", { class: "command" }, el("code", {}, text), copy);
+}
+
+function download(file, label) {
+  return el("p", {}, el("a", { class: "download", href: RELEASES + file, download: "" }, label || `Download ${file}`));
+}
+
+function moves(...buttons) {
+  const box = $("moves");
+  box.replaceChildren(...buttons.filter(Boolean));
+}
+
+function back() {
+  return trail.length ? el("button", { type: "button", class: "key", onclick: () => go(trail.pop(), true) }, "Back") : null;
+}
+
+function next(to, label) {
+  return el("button", { type: "button", class: "key", onclick: () => go(to) }, label || "Next");
+}
+
+function facts() {
+  const names = { windows: "Windows PC", mac: "Mac", linux: "Linux", android: "Android", iphone: "iPhone", none: "no phone", deb: "deb", rpm: "rpm", appimage: "AppImage", script: "one command" };
+  const shown = [chosen.computer, chosen.computer === "linux" && chosen.linux, chosen.computer === "linux" && chosen.arch && (chosen.arch === "aarch64" ? "ARM" : "x86-64"), chosen.phone]
+    .filter(Boolean).map((v) => names[v] || v);
+  $("facts").replaceChildren(...shown.map((name) => el("span", {}, name)));
+}
+
+// ------------------------------------------------------------- the steps
+const STEPS = {
+  welcome() {
+    return {
+      title: "Welcome to ok",
+      body: [
+        el("p", {}, "ok is a writing program. One window, one sheet of paper, and a machine that prints ok when your words are on the disk."),
+        el("p", {}, "This gets it onto your computer, and onto your phone if you want to type or talk from there."),
+        el("p", { class: "say" }, "Enter starts. Up and Down choose, Enter takes, Esc goes back."),
+      ],
+      moves: [next("computer", "Start")],
+      enter: () => go("computer"),
+    };
+  },
+
+  computer() {
+    return {
+      title: "What computer is this for?",
+      body: [list([
+        { value: "windows", name: "Windows PC", note: "Windows 10 or 11" },
+        { value: "mac", name: "Mac", note: "Apple silicon or Intel" },
+        { value: "linux", name: "Linux", note: "any distribution" },
+      ], (v) => { chosen.computer = v; go(v); }, chosen.computer || guessed.computer)],
+      moves: [back()],
+    };
+  },
+
+  windows() {
+    return {
+      title: "ok for Windows",
+      body: [
+        download(FILES.windows),
+        el("ol", { class: "steps" },
+          el("li", {}, "Open the file you downloaded. There is nothing to install."),
+          el("li", {}, "If Windows says it protected your PC, choose More info, then Run anyway. ok is not signed, so Windows does not know it yet."),
+          el("li", {}, "ok opens full screen on an empty sheet. Start typing."),
+        ),
+        el("p", { class: "say" }, "Keep the file somewhere you will find it, and pin ok to the taskbar while it is open."),
+      ],
+      moves: [back(), next("phone")],
+      enter: () => go("phone"),
+    };
+  },
+
+  mac() {
+    return {
+      title: "ok for Mac",
+      body: [
+        download(FILES.mac),
+        el("ol", { class: "steps" },
+          el("li", {}, "Open the zip, and drag ok into Applications."),
+          el("li", {}, "Open ok. The first time, macOS refuses, because ok is not notarized by Apple."),
+          el("li", {}, "Go to System Settings, then Privacy and Security, and choose Open Anyway. Or type this in Terminal:"),
+        ),
+        command("xattr -dr com.apple.quarantine /Applications/ok.app"),
+        el("p", { class: "say" }, "On a Mac, Cmd does what Ctrl does on Windows."),
+      ],
+      moves: [back(), next("phone")],
+      enter: () => go("phone"),
+    };
+  },
+
+  linux() {
+    return {
+      title: "Which Linux?",
+      body: [list([
+        { value: "deb", name: "Ubuntu, Debian, Mint, Pop!_OS", note: ".deb" },
+        { value: "rpm", name: "Fedora, openSUSE, RHEL", note: ".rpm" },
+        { value: "appimage", name: "Any other", note: "AppImage" },
+        { value: "script", name: "One command in a terminal", note: "any" },
+      ], (v) => { chosen.linux = v; chosen.arch = chosen.arch || guessed.arch; go("linuxGet"); }, chosen.linux || "deb")],
+      moves: [back()],
+    };
+  },
+
+  linuxGet() {
+    const arch = chosen.arch;
+    const other = arch === "aarch64" ? "x86_64" : "aarch64";
+    const swap = el("button", { type: "button", class: "key", onclick: () => { chosen.arch = other; go("linuxGet", true); } },
+      arch === "aarch64" ? "This is a PC, not ARM" : "This is ARM, like a Raspberry Pi");
+    const kinds = {
+      deb: [download(FILES.deb(arch)), el("p", {}, "Open it with the software installer, or in a terminal where it downloaded:"), command(`sudo apt install ./${FILES.deb(arch)}`)],
+      rpm: [download(FILES.rpm(arch)), el("p", {}, "Open it with the software installer, or in a terminal where it downloaded:"), command(`sudo dnf install ./${FILES.rpm(arch)}`)],
+      appimage: [download(FILES.appimage(arch)), el("p", {}, "Make it runnable, then open it. In a terminal where it downloaded:"), command(`chmod +x ${FILES.appimage(arch)} && ./${FILES.appimage(arch)}`)],
+      script: [el("p", {}, "This puts ok in ~/.local/bin and in your applications menu, for you alone, without sudo:"), command(INSTALL)],
+    };
+    return {
+      title: `ok for Linux, ${arch === "aarch64" ? "ARM" : "x86-64"}`,
+      body: [
+        ...kinds[chosen.linux],
+        el("p", { class: "say" }, "ok needs an X11 or Wayland desktop. Copy and paste use wl-copy, xclip or xsel if one is there."),
+        el("p", {}, chosen.linux === "script" ? "" : swap),
+      ],
+      moves: [back(), next("phone")],
+      enter: () => go("phone"),
+    };
+  },
+
+  phone() {
+    return {
+      title: "And your phone?",
+      body: [
+        el("p", {}, "From a phone you can type into ok, or talk and watch your words land on the computer's page."),
+        list([
+          { value: "android", name: "Android", note: "Chrome" },
+          { value: "iphone", name: "iPhone", note: "coming next" },
+          { value: "none", name: "No phone, thanks", note: "" },
+        ], (v) => { chosen.phone = v; go(v === "none" ? "done" : v); }, chosen.phone || guessed.phone || "android"),
+      ],
+      moves: [back()],
+    };
+  },
+
+  android() {
+    return {
+      title: "ok on Android",
+      body: [
+        el("ol", { class: "steps" },
+          el("li", {}, "Open ok on the computer. Press Esc, type phone, and press Enter. Two codes come up."),
+          el("li", {}, "Point the phone's camera at the code on the left, and open the page it finds in Chrome."),
+          el("li", {}, "In Chrome's menu choose Add to home screen. ok is an app on the phone from now on."),
+          el("li", {}, "Type in the line, or tap Speak and allow the microphone. Say period, comma, new paragraph, or scratch that."),
+        ),
+        el("p", {}, "The code on the left goes through the relay and works anywhere, with the microphone. The one on the right goes straight to the computer over your Wi-Fi, and nothing leaves the house; there, speak with the microphone key on the phone's keyboard. Each page has a key to switch to the other."),
+        el("p", { class: "say" }, "On Windows, allow ok on private networks the first time it asks, so the phone can find it on the Wi-Fi."),
+      ],
+      moves: [back(), next("done")],
+      enter: () => go("done"),
+    };
+  },
+
+  iphone() {
+    return {
+      title: "ok on iPhone",
+      body: [
+        el("p", {}, "The iPhone version is being made, after the Android one is finished and in use."),
+        el("p", {}, "Until then, typing from Safari works the same way: in ok press Esc, type phone, and scan the code with the camera. Speaking may not, yet."),
+      ],
+      moves: [back(), next("done")],
+      enter: () => go("done"),
+    };
+  },
+
+  done() {
+    return {
+      title: "That is everything",
+      body: [
+        el("p", {}, "Open ok and type. It saves as you go; ok on the machine line means it is all on disk."),
+        el("p", {}, "Esc goes to the line at the foot of the sheet, where a few letters of a title open a text. Type keys there to see every key."),
+        el("p", {}, el("a", { href: "https://github.com/Jasperpi/ok" }, "The code is on GitHub"), "."),
+      ],
+      moves: [back(), el("button", { type: "button", class: "key", onclick: () => { Object.keys(chosen).forEach((k) => { chosen[k] = null; }); trail.length = 0; go("welcome", true); } }, "Start over")],
+      enter: null,
+    };
+  },
+};
+
+let current = null;
+function go(to, returning) {
+  if (!returning && step !== to) trail.push(step);
+  step = to;
+  current = STEPS[to]();
+  $("title").textContent = current.title;
+  document.title = to === "welcome" ? "Install ok" : `${current.title} | ok`;
+  if (!current.body.some((n) => n && n.classList && n.classList.contains("choices"))) choices = [];
+  $("answer").replaceChildren(...current.body.filter(Boolean));
+  moves(...current.moves);
+  facts();
+  const first = document.querySelector(".choices button[aria-current='true']") || document.querySelector("#moves .key:last-child");
+  if (first && returning !== "load") first.focus({ preventScroll: true });
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.altKey || event.ctrlKey || event.metaKey) return;
+  if (choices.length && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+    event.preventDefault();
+    mark((bar + (event.key === "ArrowDown" ? 1 : choices.length - 1)) % choices.length);
+    document.querySelectorAll(".choices button")[bar].focus({ preventScroll: true });
+  } else if (event.key === "Enter" && !(event.target instanceof HTMLButtonElement) && !(event.target instanceof HTMLAnchorElement)) {
+    event.preventDefault();
+    if (choices.length) list.pick(choices[bar].value);
+    else if (current.enter) current.enter();
+  } else if (event.key === "Escape" && trail.length) {
+    go(trail.pop(), true);
+  }
+});
+
+go("welcome", "load");
+</script>
+</body>
+</html>
