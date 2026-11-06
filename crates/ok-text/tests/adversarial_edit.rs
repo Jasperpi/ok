@@ -3160,12 +3160,16 @@ fn growth_over_a_run_32_times_as_long(kind: &str, edit: EditKind) -> f64 {
 /// the next word, so in practice this was holding Delete through a very long
 /// paragraph, or carrying on from a long one-line paste or cut recorded as
 /// Insert or Delete. The text already folded is known to hold no break.
+/// A cost that grew with the run would show here as about 32 times; the
+/// bound is well under that and leaves room for a busy shared machine.
+const GROWTH: f64 = 8.0;
+
 #[test]
 fn the_cost_of_recording_a_key_does_not_grow_with_the_length_of_the_run() {
     let typing = growth_over_a_run_32_times_as_long("typing", EditKind::Insert);
     let deleting = growth_over_a_run_32_times_as_long("forward delete", EditKind::Delete);
     assert!(
-        typing < 4.0 && deleting < 4.0,
+        typing < GROWTH && deleting < GROWTH,
         "with the run before it 32 times as long, a typed key costs {typing:.0} times as much and a forward delete {deleting:.0} times"
     );
 }
@@ -3176,7 +3180,7 @@ fn the_cost_of_recording_a_key_does_not_grow_with_the_length_of_the_run() {
 #[test]
 fn the_cost_of_recording_a_backspace_does_not_grow_with_the_length_of_the_run() {
     let ratio = growth_over_a_run_32_times_as_long("backspace", EditKind::Delete);
-    assert!(ratio < 4.0, "a backspace costs {ratio:.0} times as much when the run before it is 32 times as long");
+    assert!(ratio < GROWTH, "a backspace costs {ratio:.0} times as much when the run before it is 32 times as long");
 }
 
 /// Searching without case used to try the whole needle afresh at every
