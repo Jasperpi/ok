@@ -137,6 +137,7 @@ pub(crate) fn walk(root: &Path) -> io::Result<Walk> {
 
 #[cfg(test)]
 mod tests {
+    #![cfg_attr(not(windows), allow(unused_imports))]
     use super::*;
     use crate::testing::Scratch;
 

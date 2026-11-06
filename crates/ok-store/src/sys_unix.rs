@@ -63,7 +63,7 @@ extern "C" {
     fn rename(from: *const c_char, to: *const c_char) -> c_int;
     fn unlink(path: *const c_char) -> c_int;
     #[cfg(target_os = "linux")]
-    fn renameat2(from_dir: c_int, from: *const c_char, to_dir: c_int, to: *const c_char, flags: u32) -> c_int;
+    fn syscall(number: c_long, ...) -> c_long;
     #[cfg(target_os = "macos")]
     fn renamex_np(from: *const c_char, to: *const c_char, flags: u32) -> c_int;
     #[cfg(target_os = "macos")]
@@ -235,16 +235,31 @@ pub(crate) fn rename_path(from: &Path, to: &Path, replace: bool) -> Result<(), u
         // SAFETY: both are nul-terminated paths that outlive the call.
         return if unsafe { rename(a.as_ptr(), b.as_ptr()) } == 0 { Ok(()) } else { Err(last_error()) };
     }
-    #[cfg(target_os = "linux")]
-    // SAFETY: as above; -100 is AT_FDCWD and 1 is RENAME_NOREPLACE.
-    let done = unsafe { renameat2(-100, a.as_ptr(), -100, b.as_ptr(), 1) };
+    // The one-step refusing rename: renamex_np on a Mac, and on Linux
+    // renameat2 through the kernel itself, because the C library's wrapper
+    // only arrived in glibc 2.28 and ok is built to run on older ones.
     #[cfg(target_os = "macos")]
     // SAFETY: as above; 4 is RENAME_EXCL.
     let done = unsafe { renamex_np(a.as_ptr(), b.as_ptr(), 4) };
+    #[cfg(all(target_os = "linux", any(target_arch = "x86_64", target_arch = "aarch64")))]
+    let done = {
+        #[cfg(target_arch = "x86_64")]
+        const RENAMEAT2: c_long = 316;
+        #[cfg(target_arch = "aarch64")]
+        const RENAMEAT2: c_long = 276;
+        // SAFETY: as above; -100 is AT_FDCWD and 1 is RENAME_NOREPLACE.
+        unsafe { syscall(RENAMEAT2, -100 as c_long, a.as_ptr(), -100 as c_long, b.as_ptr(), 1 as c_long) as c_int }
+    };
+    // Elsewhere there is no one step; the look-then-rename below is used.
+    #[cfg(not(any(target_os = "macos", all(target_os = "linux", any(target_arch = "x86_64", target_arch = "aarch64")))))]
+    let done: c_int = -1;
     if done == 0 {
         return Ok(());
     }
+    #[cfg(any(target_os = "macos", all(target_os = "linux", any(target_arch = "x86_64", target_arch = "aarch64"))))]
     let error = last_error();
+    #[cfg(not(any(target_os = "macos", all(target_os = "linux", any(target_arch = "x86_64", target_arch = "aarch64")))))]
+    let error = 38;
     // A file system that cannot refuse in one step: look, then rename.
     if matches!(error, 87 | 38 | 45 | 95 | 102) {
         if fs::symlink_metadata(to).is_ok() {
