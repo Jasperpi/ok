@@ -233,6 +233,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ok-link"
+version = "0.1.0"
+dependencies = [
+ "ok-gfx",
+]
+
+[[package]]
 name = "ok-mini"
 version = "0.1.0"
 dependencies = [
@@ -258,6 +265,7 @@ version = "0.1.0"
 dependencies = [
  "ok-gfx",
  "ok-host",
+ "ok-link",
  "ok-store",
  "ok-text",
 ]

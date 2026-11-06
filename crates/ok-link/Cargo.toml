@@ -1,0 +1,8 @@
+[package]
+name = "ok-link"
+description = "The phone link: a small web server for the phone page, the relay client, and what they carry"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ok-gfx = { path = "../ok-gfx" }

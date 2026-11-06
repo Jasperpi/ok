@@ -67,6 +67,8 @@ copy                    The whole text to the clipboard with the
                         marks removed.
 keys                    This page.
 notices                 The licences of the faces and code.
+phone                   A code for the phone: what you type or
+                        say on it goes in here.
 quit                    Leaves.";
 
 /// The licences of the faces and the code inside the .exe.

@@ -28,7 +28,7 @@ fn desk() -> Rig {
     let folder = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/desk");
     // The flow is tested with a line that does nothing, so that Esc is only
     // what the flow makes of it.
-    let options = Options { file: Some(folder.join("College/The orchard.md")), folder: Some(folder), look: None, store: false };
+    let options = Options { file: Some(folder.join("College/The orchard.md")), folder: Some(folder), look: None, store: false, phone: false };
     let session = Box::new(ok_ui::session::Memory::new(&options));
     let mut rig = Rig::with_seams(options, session, Box::new(Closed), ok_ui::flow::start());
     rig.size(1920, 1080);

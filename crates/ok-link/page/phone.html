@@ -1,0 +1,670 @@
+<!doctype html>
+<!--
+ok, the phone page
+Thesis: the phone is a strip of the same sheet with ok's machine line under
+  it, and a desk of keys below: what you type or say lands on the computer's
+  page as you watch it here.
+Palette: the computer's own look, sent with every status (paper, ink, desk,
+  desk ink). Until the first status, ok's default, manila, from DESIGN.md:
+  paper EEE3C8, ink 221F1B, desk 35251A, desk ink E6D9BA. Half strength is
+  65 percent of the way from the ground to the ink, as on the computer.
+Type: Gallant 12x22 (Sun's console face), built from ok's own bitmap and
+  served as a font; every word on the page is the machine's.
+Signature: the sheet strip. Its last line ends in ok's block cursor, and the
+  machine line under it prints ok when the words are on the computer's disk.
+Served two ways: by ok itself on the same Wi-Fi (plain HTTP, with the token
+  in ?t=), and by the relay (HTTPS, with the pairing secret after #s=).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#35251A">
+<meta name="ok-relay" content="{{RELAY}}">
+<meta name="referrer" content="no-referrer">
+<title>ok</title>
+<link rel="manifest" id="manifest">
+<link rel="icon" href="/icon.png">
+<style>
+@font-face {
+  font-family: "ok Gallant";
+  src: url("/gallant.ttf") format("truetype");
+  font-display: block;
+}
+:root {
+  /* ok's default look, manila, until the computer says otherwise. Source: DESIGN.md */
+  --paper: #EEE3C8;    /* cream typing sheet */
+  --ink: #221F1B;      /* black fabric ribbon */
+  --desk: #35251A;     /* stained walnut desk */
+  --desk-ink: #E6D9BA; /* what is printed on the desk */
+  --half: color-mix(in srgb, var(--ink) 65%, var(--paper));
+  --desk-half: color-mix(in srgb, var(--desk-ink) 65%, var(--desk));
+  --faint: color-mix(in srgb, var(--ink) 35%, var(--paper));
+  --cell: 12px;
+  --row: 22px;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--desk);
+  color: var(--desk-ink);
+  font: 22px/22px "ok Gallant", ui-monospace, "Courier New", monospace;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
+button, textarea, select { font: inherit; color: inherit; }
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* The sheet: the end of the text on the computer, cursor and all. */
+.sheet {
+  flex: 1 1 auto;
+  min-height: calc(var(--row) * 4);
+  margin: 0 var(--cell);
+  background: var(--paper);
+  color: var(--ink);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: var(--row) var(--cell) 0;
+}
+.words {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+  font: inherit;
+}
+.words .after { color: var(--half); }
+.words .heard { color: var(--half); }
+.cursor {
+  background: var(--ink);
+  color: var(--paper);
+}
+.machine {
+  display: flex;
+  gap: calc(var(--cell) * 2);
+  white-space: nowrap;
+  overflow: hidden;
+  padding: var(--row) 0 calc(var(--row) / 2);
+  color: var(--half);
+}
+.machine .ok { color: var(--ink); min-width: calc(var(--cell) * 2); }
+.machine .name { overflow: hidden; text-overflow: clip; }
+
+/* The line typed into: it is gone to the computer as soon as it is typed. */
+.typing {
+  display: block;
+  width: calc(100% - var(--cell) * 2);
+  margin: 0 var(--cell);
+  min-height: calc(var(--row) * 2);
+  max-height: calc(var(--row) * 4);
+  padding: calc(var(--row) / 2) var(--cell);
+  background: var(--paper);
+  color: var(--ink);
+  border: 0;
+  border-top: 1px solid var(--faint);
+  border-radius: 0;
+  resize: none;
+  outline: none;
+  caret-color: var(--ink);
+}
+.typing::placeholder { color: var(--half); opacity: 1; }
+.typing:focus-visible { box-shadow: inset 0 0 0 2px var(--ink); }
+
+/* The desk: what the machine says, and the keys. */
+.desk {
+  flex: 0 0 auto;
+  padding: calc(var(--row) / 2) var(--cell) calc(var(--row) / 2);
+}
+.says {
+  min-height: var(--row);
+  margin: 0 0 calc(var(--row) / 2);
+  color: var(--desk-half);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.says.loud { color: var(--desk-ink); }
+.keys {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.key {
+  min-height: calc(var(--row) * 2);
+  padding: 0 4px;
+  background: transparent;
+  color: var(--desk-ink);
+  border: 1px solid var(--desk-half);
+  border-radius: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.key:active, .key[aria-pressed="true"] {
+  background: var(--desk-ink);
+  color: var(--desk);
+}
+.key:focus-visible { outline: 2px solid var(--desk-ink); outline-offset: 2px; }
+.key:disabled { color: var(--desk-half); border-color: color-mix(in srgb, var(--desk-ink) 30%, var(--desk)); }
+.key.wide { grid-column: span 2; }
+.key.all { grid-column: 1 / -1; }
+.speak {
+  grid-column: 1 / -1;
+  min-height: calc(var(--row) * 3);
+  font-size: 44px;
+  line-height: 44px;
+}
+.speak[aria-pressed="true"] { animation: none; }
+.heard-line {
+  grid-column: 1 / -1;
+  min-height: var(--row);
+  color: var(--desk-half);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  direction: rtl;
+  text-align: left;
+}
+.heard-line span { direction: ltr; unicode-bidi: plaintext; }
+.settings {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+.settings[hidden] { display: none; }
+.settings select {
+  min-height: calc(var(--row) * 2);
+  background: var(--desk);
+  border: 1px solid var(--desk-half);
+  border-radius: 0;
+  padding: 0 var(--cell);
+}
+.notice {
+  margin: var(--row) var(--cell);
+  color: var(--desk-ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<main class="sheet" aria-label="The end of the text on the computer">
+  <pre class="words" id="words" aria-live="off"><span id="before"></span><span class="heard" id="heard"></span><span class="cursor" id="cursor"> </span><span class="after" id="after"></span></pre>
+  <div class="machine" aria-live="polite"><span class="ok" id="ok"></span><span class="name" id="name">ok</span><span id="count"></span></div>
+</main>
+<textarea class="typing" id="typing" rows="1" autocapitalize="sentences" autocomplete="off" spellcheck="true" enterkeyhint="enter" placeholder="Type here. It goes straight to the computer." aria-label="Type into ok on the computer"></textarea>
+<section class="desk" aria-label="Keys">
+  <p class="says" id="says" role="status">Looking for the computer.</p>
+  <div class="keys" id="keys">
+    <div class="heard-line" id="heard-line" aria-hidden="true"><span id="heard-text"></span></div>
+    <button class="key speak" id="speak" type="button" aria-pressed="false" hidden>Speak</button>
+    <button class="key" type="button" data-text=".">Period</button>
+    <button class="key" type="button" data-text=",">Comma</button>
+    <button class="key" type="button" data-text="?">Question</button>
+    <button class="key" type="button" data-key="enter">Return</button>
+    <button class="key" type="button" data-key="wordback">Word back</button>
+    <button class="key" type="button" data-key="undo">Undo</button>
+    <button class="key wide" type="button" id="scratch" disabled>Scratch that</button>
+    <button class="key" type="button" id="more" aria-expanded="false" aria-controls="settings">Settings</button>
+    <button class="key all" type="button" id="switch" hidden></button>
+  </div>
+  <div class="settings" id="settings" hidden>
+    <select id="lang" aria-label="Language heard">
+      <option value="en-US">English, United States</option>
+      <option value="en-GB">English, United Kingdom</option>
+      <option value="es-US">Español, Estados Unidos</option>
+      <option value="es-MX">Español, México</option>
+      <option value="fr-FR">Français</option>
+      <option value="de-DE">Deutsch</option>
+    </select>
+    <button class="key all" type="button" id="live" aria-pressed="true">Words appear as you speak</button>
+    <button class="key all" type="button" id="forget">Forget this computer</button>
+  </div>
+</section>
+<script>
+"use strict";
+// ---------------------------------------------------------------- the link
+const $ = (id) => document.getElementById(id);
+const relayHost = (document.querySelector('meta[name="ok-relay"]').content || "").replace("{{RELAY}}", "");
+// Served by ok itself the address carries a token; served by the relay it does not.
+const onRelay = !new URLSearchParams(location.search).get("t");
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+let socket = null, key = null, room = "", token = "", status = null, deskThere = !onRelay;
+let tries = 0, quietTimer = 0, keepTimer = 0;
+
+function says(text, loud) {
+  const p = $("says");
+  p.textContent = text;
+  p.classList.toggle("loud", !!loud);
+}
+
+function b64url(bytes) {
+  let s = "";
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function unb64(text) {
+  const s = atob(text.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((text.length + 3) % 4));
+  return Uint8Array.from(s, (c) => c.charCodeAt(0));
+}
+async function sha256(bytes) {
+  return new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+}
+function hex(bytes) {
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+function joined(a, b) {
+  const out = new Uint8Array(a.length + b.length);
+  out.set(a); out.set(b, a.length);
+  return out;
+}
+
+async function pair() {
+  if (onRelay) {
+    const fromCode = new URLSearchParams(location.hash.slice(1)).get("s");
+    if (fromCode) {
+      localStorage.setItem("ok-secret", fromCode);
+      history.replaceState(null, "", location.pathname);
+    }
+    const secret = localStorage.getItem("ok-secret");
+    if (!secret) return false;
+    const raw = unb64(secret);
+    room = hex((await sha256(joined(enc.encode("ok room "), raw))).slice(0, 16));
+    key = await crypto.subtle.importKey("raw", await sha256(joined(enc.encode("ok key "), raw)), "AES-GCM", false, ["encrypt", "decrypt"]);
+    return true;
+  }
+  token = new URLSearchParams(location.search).get("t") || "";
+  return token !== "";
+}
+
+async function seal(text) {
+  const nonce = crypto.getRandomValues(new Uint8Array(12));
+  const sealed = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce, additionalData: enc.encode("p") }, key, enc.encode(text)));
+  return b64url(joined(nonce, sealed));
+}
+async function unseal(text) {
+  const bytes = unb64(text);
+  const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.slice(0, 12), additionalData: enc.encode("d") }, key, bytes.slice(12));
+  return dec.decode(plain);
+}
+
+// What is sent goes out in order, sealed first when through the relay.
+let outbox = Promise.resolve();
+function send(message) {
+  if (!socket || socket.readyState !== 1) return false;
+  mirror(message);
+  const s = socket;
+  outbox = outbox.then(async () => {
+    const text = onRelay ? await seal(message) : message;
+    if (s.readyState === 1) s.send(text);
+  }).catch(() => {});
+  return true;
+}
+
+function connect() {
+  const url = onRelay
+    ? `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/r/${room}/phone`
+    : `ws://${location.host}/ws?t=${encodeURIComponent(token)}`;
+  socket = new WebSocket(url);
+  socket.onopen = () => {
+    tries = 0;
+    send("h");
+    clearInterval(keepTimer);
+    keepTimer = setInterval(() => send("p"), 15000);
+    if (!onRelay) says("On this Wi-Fi.");
+    else if (!deskThere) says("Waiting for the computer.");
+  };
+  socket.onmessage = async (event) => {
+    let text = event.data;
+    if (onRelay && text.startsWith("!")) {
+      const there = text === "!desk=1";
+      if (there !== deskThere) {
+        deskThere = there;
+        if (there) send("h");
+        else says("Is ok open on the computer?", true);
+      }
+      return;
+    }
+    if (onRelay) {
+      try { text = await unseal(text); } catch { return; }
+    }
+    if (text.startsWith("s")) {
+      try { show(JSON.parse(text.slice(1))); } catch {}
+    }
+  };
+  socket.onclose = () => {
+    clearInterval(keepTimer);
+    socket = null;
+    tries += 1;
+    says(tries > 2 ? "Cannot reach the computer." : "Looking for the computer.", tries > 2);
+    offerSwitch(tries > 2);
+    setTimeout(connect, Math.min(8000, 500 * tries));
+  };
+}
+
+// --------------------------------------------------------------- the sheet
+// The words before the computer's cursor: as it last said, with everything
+// sent since applied, so dictation knows what it joins.
+let tail = "";
+let after = "";
+function mirror(message) {
+  const rest = message.slice(1);
+  if (message[0] === "t") tail += rest;
+  else if (message[0] === "b") { const p = Array.from(tail); tail = p.slice(0, Math.max(0, p.length - Number(rest))).join(""); }
+  else if (message === "kenter") tail += "\n";
+  tail = Array.from(tail).slice(-2000).join("");
+}
+
+function show(s) {
+  const first = !status;
+  status = s;
+  tail = s.before;
+  after = s.after;
+  const root = document.documentElement.style;
+  const [paper, ink, desk, deskInk] = s.look.map((c) => "#" + c);
+  root.setProperty("--paper", paper);
+  root.setProperty("--ink", ink);
+  root.setProperty("--desk", desk);
+  root.setProperty("--desk-ink", deskInk);
+  document.querySelector('meta[name="theme-color"]').content = desk;
+  $("ok").textContent = s.saved ? "ok" : "";
+  $("name").textContent = s.name;
+  $("count").textContent = `${s.words} ${s.words === 1 ? "word" : "words"}`;
+  $("before").textContent = lastLines(s.before);
+  $("after").textContent = s.after.split("\n")[0];
+  if (first) says(onRelay ? "Through the relay." : "On this Wi-Fi.");
+  if (s.direct) localStorage.setItem("ok-direct", s.direct);
+  if (s.relay) localStorage.setItem("ok-relay", s.relay);
+  offerSwitch(false);
+}
+
+// Only the last few lines are kept: the sheet shows its foot.
+function lastLines(text) {
+  const lines = text.split("\n");
+  return lines.slice(-12).join("\n");
+}
+
+// -------------------------------------------------------------- the typing
+// The field holds one invisible character before the words, so that a
+// backspace on an empty field still reaches the computer.
+const KEEP = "​";
+const typing = $("typing");
+let sent = "";
+let composing = false;
+
+function points(text) { return Array.from(text); }
+
+// Sends what it takes to turn `from` into `to` on the computer.
+function change(from, to) {
+  const a = points(from), b = points(to);
+  let same = 0;
+  while (same < a.length && same < b.length && a[same] === b[same]) same++;
+  if (a.length > same) send("b" + (a.length - same));
+  if (b.length > same) send("t" + b.slice(same).join(""));
+}
+
+function reset() {
+  typing.value = KEEP;
+  sent = "";
+  typing.setSelectionRange(1, 1);
+}
+
+typing.addEventListener("focus", () => {
+  if (!typing.value.startsWith(KEEP)) reset();
+  requestAnimationFrame(() => typing.setSelectionRange(typing.value.length, typing.value.length));
+});
+typing.addEventListener("compositionstart", () => { composing = true; });
+typing.addEventListener("compositionend", () => { composing = false; settle(); });
+typing.addEventListener("input", () => {
+  let value = typing.value;
+  if (!value.startsWith(KEEP)) {
+    // The kept character went: a backspace with nothing typed.
+    const words = value.replace(/​/g, "");
+    if (words === sent) {
+      if (sent === "") send("b1");
+      else { change(sent, points(sent).slice(0, -1).join("")); sent = points(sent).slice(0, -1).join(""); }
+    } else {
+      change(sent, words);
+      sent = words;
+    }
+    typing.value = KEEP + sent;
+    typing.setSelectionRange(typing.value.length, typing.value.length);
+    return;
+  }
+  const words = value.slice(1);
+  change(sent, words);
+  sent = words;
+  settle();
+});
+
+// After a line is finished the field is emptied, so it never grows long.
+function settle() {
+  if (composing) return;
+  if (sent.endsWith("\n") || points(sent).length > 400) reset();
+}
+
+// ---------------------------------------------------------------- the keys
+const said = [];   // what dictation put in, last first, for scratch that
+for (const button of document.querySelectorAll("[data-text]")) {
+  button.addEventListener("click", () => {
+    const mark = button.dataset.text;
+    // A mark goes against the word before it.
+    if (tail.endsWith(" ") && !sent) send("b1");
+    send("t" + mark);
+    tick();
+  });
+}
+for (const button of document.querySelectorAll("[data-key]")) {
+  button.addEventListener("click", () => {
+    send("k" + button.dataset.key);
+    if (button.dataset.key === "enter") reset();
+    tick();
+  });
+}
+$("scratch").addEventListener("click", scratch);
+$("more").addEventListener("click", () => {
+  const open = $("settings").hidden;
+  $("settings").hidden = !open;
+  $("more").setAttribute("aria-expanded", String(open));
+});
+$("forget").addEventListener("click", () => {
+  localStorage.removeItem("ok-secret");
+  localStorage.removeItem("ok-direct");
+  localStorage.removeItem("ok-relay");
+  location.replace(onRelay ? "/" : location.pathname);
+});
+
+function tick() {
+  if (navigator.vibrate) navigator.vibrate(8);
+}
+
+// Offers the other way to the computer: Wi-Fi from the relay, the relay
+// from Wi-Fi. Pressed when this way cannot reach it, or kept quiet.
+function offerSwitch(urgent) {
+  const button = $("switch");
+  const there = onRelay ? localStorage.getItem("ok-direct") : localStorage.getItem("ok-relay") || (status && status.relay);
+  if (!there) { button.hidden = true; return; }
+  button.hidden = false;
+  button.textContent = onRelay ? "Use Wi-Fi" : "Use the relay";
+  button.setAttribute("aria-pressed", urgent ? "true" : "false");
+  button.onclick = () => location.assign(there);
+}
+
+// ---------------------------------------------------------------- speaking
+const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let hearing = null, listening = false, shown = "", wakeLock = null;
+const live = () => $("live").getAttribute("aria-pressed") === "true";
+
+$("live").addEventListener("click", () => {
+  const on = !live();
+  $("live").setAttribute("aria-pressed", String(on));
+  localStorage.setItem("ok-live", on ? "1" : "0");
+});
+if (localStorage.getItem("ok-live") === "0") $("live").setAttribute("aria-pressed", "false");
+$("lang").value = localStorage.getItem("ok-lang") || "en-US";
+$("lang").addEventListener("change", () => {
+  localStorage.setItem("ok-lang", $("lang").value);
+  if (listening) { stopListening(); startListening(); }
+});
+
+// Spoken marks and the commands that stand alone.
+const MARKS = [
+  [/\b(?:full stop|period)\b/gi, "."], [/\bcomma\b/gi, ","], [/\bquestion mark\b/gi, "?"],
+  [/\bexclamation (?:point|mark)\b/gi, "!"], [/\bsemicolon\b/gi, ";"], [/\bcolon\b/gi, ":"],
+  [/\b(?:em )?dash\b/gi, " —"], [/\bhyphen\b/gi, "-"], [/\bellipsis\b/gi, "…"],
+  [/\bopen quote\b/gi, "“"], [/\b(?:close|end) quote\b/gi, "”"],
+  [/\bopen paren(?:thesis)?\b/gi, "("], [/\bclose paren(?:thesis)?\b/gi, ")"],
+];
+const COMMANDS = [
+  [/^(?:scratch that|delete that|strike that)$/i, () => scratch()],
+  [/^(?:new paragraph|new line|next paragraph)$/i, () => { send("kenter"); }],
+  [/^(?:undo|undo that)$/i, () => send("kundo")],
+  [/^(?:delete (?:the )?last word|word back)$/i, () => send("kwordback")],
+  [/^(?:stop listening|stop dictation)$/i, () => stopListening()],
+];
+
+// Puts spoken words in the shape of the sentence they join.
+function shaped(raw, before) {
+  let text = raw.trim();
+  if (!text) return "";
+  for (const [pattern, mark] of MARKS) text = text.replace(pattern, mark);
+  text = text.replace(/\s+([.,?!;:)”…])/g, "$1").replace(/([(“])\s+/g, "$1");
+  text = text.replace(/\bcap(?:ital)? (\p{L})/giu, (_, c) => c.toUpperCase());
+  text = text.replace(/([.?!]\s+)(\p{Ll})/gu, (_, gap, c) => gap + c.toUpperCase());
+  const last = before.slice(-1);
+  const startsSentence = before.trim() === "" || /[.?!\n]\s*$/.test(before);
+  if (startsSentence) text = text.replace(/^(\P{L}*)(\p{Ll})/u, (_, lead, c) => lead + c.toUpperCase());
+  const joins = last === "" || /[\s(“—-]$/.test(last) || /^[.,?!;:)”…]/.test(text);
+  return (joins ? "" : " ") + text;
+}
+
+// The words before the cursor, without what is only heard so far.
+function settled() {
+  const p = Array.from(tail);
+  return p.slice(0, p.length - Array.from(shown).length).join("");
+}
+
+function commit(raw) {
+  const plain = raw.trim();
+  for (const [pattern, act] of COMMANDS) {
+    if (pattern.test(plain)) {
+      change(shown, "");
+      shown = "";
+      act();
+      tick();
+      return;
+    }
+  }
+  const words = shaped(plain, settled());
+  change(shown, words);
+  shown = "";
+  if (words) {
+    said.unshift(words);
+    said.length = Math.min(said.length, 50);
+    $("scratch").disabled = false;
+    tick();
+  }
+}
+
+function scratch() {
+  const last = said.shift();
+  if (last) send("b" + points(last).length);
+  $("scratch").disabled = said.length === 0;
+}
+
+function startListening() {
+  if (!Recognition) return;
+  hearing = new Recognition();
+  hearing.lang = $("lang").value;
+  hearing.continuous = true;
+  hearing.interimResults = true;
+  hearing.maxAlternatives = 1;
+  hearing.onresult = (event) => {
+    let interim = "";
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const result = event.results[i];
+      if (result.isFinal) commit(result[0].transcript);
+      else interim += result[0].transcript;
+    }
+    $("heard-text").textContent = interim;
+    if (live() && interim) {
+      const words = shaped(interim, settled());
+      change(shown, words);
+      shown = words;
+    }
+  };
+  hearing.onerror = (event) => {
+    if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+      says("Allow the microphone in Chrome.", true);
+      listening = false;
+      showListening();
+    } else if (event.error === "network") {
+      says("Speaking needs the internet.", true);
+    }
+  };
+  hearing.onend = () => {
+    $("heard-text").textContent = "";
+    if (shown) { change(shown, ""); shown = ""; }
+    // Android ends a session at every long pause; keep going while asked.
+    if (listening) setTimeout(() => { if (listening) { try { hearing.start(); } catch {} } }, 120);
+  };
+  listening = true;
+  try { hearing.start(); } catch {}
+  showListening();
+  if (navigator.wakeLock) navigator.wakeLock.request("screen").then((lock) => { wakeLock = lock; }).catch(() => {});
+}
+
+function stopListening() {
+  listening = false;
+  if (hearing) { try { hearing.stop(); } catch {} }
+  if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+  showListening();
+}
+
+function showListening() {
+  const button = $("speak");
+  button.setAttribute("aria-pressed", String(listening));
+  button.textContent = listening ? "Listening" : "Speak";
+  if (listening) says("Say “period” or “scratch that”.");
+}
+
+if (Recognition && window.isSecureContext) {
+  $("speak").hidden = false;
+  $("speak").addEventListener("click", () => (listening ? stopListening() : startListening()));
+} else {
+  typing.placeholder = "Type, or speak with the microphone on your keyboard.";
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && listening) stopListening();
+});
+
+// ------------------------------------------------------------------- start
+(async () => {
+  const manifest = $("manifest");
+  manifest.href = onRelay ? "/manifest.webmanifest" : `/manifest.webmanifest?t=${encodeURIComponent(new URLSearchParams(location.search).get("t") || "")}`;
+  if (!(await pair())) {
+    says("In ok: Esc, then phone.", true);
+    offerSwitch(true);
+    return;
+  }
+  reset();
+  connect();
+})();
+</script>
+</body>
+</html>

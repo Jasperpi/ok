@@ -1,0 +1,23 @@
+# The relay between a phone and ok on a computer: it serves the phone page
+# over HTTPS and passes sealed messages between the two. It never sees a
+# key, so it cannot read or change a word.
+#
+# Deploy with `npm run deploy` from this folder; that copies the page, the
+# font and the icon out of the Rust build first (see package.json).
+name = "ok-relay"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "none"
+run_worker_first = ["/r/*"]
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]

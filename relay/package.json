@@ -1,0 +1,8 @@
+{
+  "name": "ok-relay",
+  "private": true,
+  "scripts": {
+    "assets": "cd .. && cargo run --offline -q -p ok-link --example relay-assets -- relay/public",
+    "deploy": "npm run assets && npx wrangler@4 deploy"
+  }
+}

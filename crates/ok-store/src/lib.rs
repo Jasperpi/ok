@@ -1045,8 +1045,9 @@ impl Store {
     }
 
     /// Stops both threads at once, as a kill would: nothing is flushed,
-    /// saved or closed, and every journal is left as it stands. For tests of
-    /// recovery.
+    /// saved or closed, and every journal is left as it stands, except that
+    /// a new generation of one already being put in place is let finish.
+    /// For tests of recovery.
     #[doc(hidden)]
     pub fn abandon(mut self) {
         self.stopped = true;

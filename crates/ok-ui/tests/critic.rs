@@ -21,7 +21,7 @@ fn desk() -> PathBuf {
 
 /// The orchard essay on its desk in a window of this size.
 fn essay(width: usize, height: usize) -> Rig {
-    let mut r = Rig::new(Options { file: Some(desk().join("College/The orchard.md")), folder: Some(desk()), look: None, store: false });
+    let mut r = Rig::new(Options { file: Some(desk().join("College/The orchard.md")), folder: Some(desk()), look: None, store: false, phone: false });
     r.size(width, height);
     r
 }

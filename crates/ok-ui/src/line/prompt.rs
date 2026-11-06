@@ -77,6 +77,8 @@ enum Ask<'a> {
     Copy,
     Keys,
     Notices,
+    /// The codes a phone scans to type in.
+    Phone,
     Quit,
 }
 
@@ -107,6 +109,7 @@ fn ask(typed: &str) -> Ask<'_> {
         "copy" => Ask::Copy,
         "keys" => Ask::Keys,
         "notices" => Ask::Notices,
+        "phone" => Ask::Phone,
         "quit" => Ask::Quit,
         _ => Ask::Title(whole),
     }
@@ -547,6 +550,7 @@ impl Prompt {
             }
             Ask::Keys => self.word(app, String::from("Enter shows the keys on the page.")),
             Ask::Notices => self.word(app, String::from("Enter shows the licences of the faces and code in the .exe.")),
+            Ask::Phone => self.word(app, String::from("Enter shows the code a phone scans to type in here.")),
             Ask::Quit => self.word(app, String::from("Enter leaves. Nothing can be lost.")),
         }
         self.typed = typed;
@@ -936,6 +940,20 @@ impl Prompt {
         self.understand(app, host);
     }
 
+    /// Puts the codes for a phone on the page, as the keys are put there.
+    fn read_phone(&mut self, app: &mut App, host: &mut dyn Host) {
+        self.home(app);
+        if let Err(sentence) = app.phone_page(host) {
+            self.mistake = Some(sentence);
+            return;
+        }
+        self.reading = Some(Reading { keys: false, sections: Vec::new() });
+        self.typed.clear();
+        self.caret = 0;
+        self.left_empty(host.now_ms());
+        self.understand(app, host);
+    }
+
     /// The line has just become empty: the wait for the list of what it
     /// understands starts again.
     fn left_empty(&mut self, now: u64) {
@@ -1124,6 +1142,7 @@ impl Prompt {
             }
             Ask::Keys => self.read_page(true, app, host),
             Ask::Notices => self.read_page(false, app, host),
+            Ask::Phone => self.read_phone(app, host),
             Ask::Quit => {
                 self.finish(app, false);
                 app.leave(host);

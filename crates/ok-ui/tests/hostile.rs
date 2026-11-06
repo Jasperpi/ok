@@ -181,7 +181,7 @@ fn files_that_are_not_text_open_without_complaint() {
         std::fs::write(folder.join(name), bytes).unwrap();
     }
     for (name, _) in &files {
-        let mut rig = Rig::new(Options { file: Some(folder.join(name)), folder: Some(folder.clone()), look: None, store: false });
+        let mut rig = Rig::new(Options { file: Some(folder.join(name)), folder: Some(folder.clone()), look: None, store: false, phone: false });
         rig.size(1920, 1080);
         rig.draw();
         rig.type_text("x\n");
@@ -196,7 +196,7 @@ fn files_that_are_not_text_open_without_complaint() {
     }
     // A file that is not there, a folder that is not there, a folder that is a file.
     for (file, folder) in [("no such.md", "no such folder"), ("empty.md", "empty.md"), ("deep", "deep")] {
-        let mut rig = Rig::new(Options { file: Some(folder_path(&folder_of(folder), file)), folder: Some(folder_of(folder)), look: Some(String::from("no such look")), store: false });
+        let mut rig = Rig::new(Options { file: Some(folder_path(&folder_of(folder), file)), folder: Some(folder_of(folder)), look: Some(String::from("no such look")), store: false, phone: false });
         rig.size(800, 600);
         rig.draw();
         assert_eq!(rig.app.look().name, "manila");

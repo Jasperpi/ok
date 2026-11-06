@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/ok-gfx", "crates/ok-text", "crates/ok-host", "crates/ok-win", "crates/ok-mini", "crates/ok-store", "crates/ok-ui"]
+members = ["crates/ok-gfx", "crates/ok-text", "crates/ok-host", "crates/ok-win", "crates/ok-mini", "crates/ok-link", "crates/ok-store", "crates/ok-ui"]
 resolver = "2"
 
 [workspace.package]

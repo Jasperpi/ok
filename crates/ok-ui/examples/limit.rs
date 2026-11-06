@@ -65,7 +65,7 @@ const THIRD: &str = "He let me think that for about a week. Then he walked me to
 
 fn essay(limit: usize) -> Rig {
     let desk = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/desk");
-    let options = Options { file: Some(desk.join("College/The orchard.md")), folder: Some(desk), look: None, store: false };
+    let options = Options { file: Some(desk.join("College/The orchard.md")), folder: Some(desk), look: None, store: false, phone: false };
     let session = Limited { desk: Memory::new(&options), limit: Some(limit) };
     let mut rig = Rig::with_seams(options, Box::new(session), Box::new(Closed), ok_ui::flow::start());
     rig.size(1920, 1080);

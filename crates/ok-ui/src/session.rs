@@ -74,6 +74,9 @@ pub struct Options {
     /// Keep the texts in the writing folder through the save layer. Off for
     /// frames and tests, which must never write; on in the program.
     pub store: bool,
+    /// Let a phone type in: serve its page on the network and connect to
+    /// the relay. Off for frames and tests; on in the program.
+    pub phone: bool,
 }
 
 /// A text handed to the page.

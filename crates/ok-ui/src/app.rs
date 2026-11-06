@@ -27,6 +27,8 @@ use crate::platen::View;
 use crate::scene::{self, Scene};
 use crate::session::{self, Opened, Options, Session};
 
+mod phone;
+
 /// The settings the interface reads that are plain numbers and switches.
 /// `set` on the line changes them (see `line/settings.rs`, which also
 /// keeps them in the settings text); the look, the face and the window
@@ -186,6 +188,9 @@ pub struct App {
     quit: bool,
     pointer_hidden: bool,
     redraw: bool,
+    phone: phone::Phone,
+    /// The phone link may be started: in the program, never in tests.
+    phone_allowed: bool,
 }
 
 impl App {
@@ -232,6 +237,8 @@ impl App {
             quit: false,
             pointer_hidden: false,
             redraw: true,
+            phone: phone::Phone::default(),
+            phone_allowed: options.phone,
         };
         app.open_text(opened);
         // The settings are read once, here. What the options ask for is
@@ -243,6 +250,7 @@ impl App {
             app.look = look;
         }
         app.settings_written = settings::written(&app);
+        app.phone_resume(host);
         app
     }
 
@@ -935,8 +943,9 @@ impl App {
     }
 }
 
-impl Program for App {
-    fn event(&mut self, event: Event, host: &mut dyn Host) {
+impl App {
+    /// One event, as the shell would deliver it.
+    fn event_inner(&mut self, event: Event, host: &mut dyn Host) {
         match event {
             Event::Text(ch) => self.typed(ch, host),
             Event::Key { key, mods, .. } => self.key(key, mods, host),
@@ -988,8 +997,16 @@ impl Program for App {
         self.page.set_limit(self.session.limit());
         self.redraw = true;
     }
+}
+
+impl Program for App {
+    fn event(&mut self, event: Event, host: &mut dyn Host) {
+        self.event_inner(event, host);
+        self.phone_input(host);
+    }
 
     fn wants(&mut self, host: &dyn Host) -> Wants {
+        self.phone_publish();
         let now = host.now_ms();
         let hold = self.hold.filter(|hold| !hold.used).map(|hold| hold.since_ms.saturating_add(HOLD_MS).saturating_sub(now)).filter(|&left| left > 0);
         let said = self.said.as_ref().and_then(|(_, until)| *until).map(|until| until.saturating_sub(now));
@@ -1040,10 +1057,14 @@ impl Program for App {
             focused: self.focused,
             said: saying(self.hold, self.mods, &self.said, now_ms),
         };
+        let codes = self.phone_draw();
         let mut canvas = Canvas::new(frame, &mut self.faces, host, &self.grid, &self.look, &mut self.screen);
         canvas.underline_cursor(self.prefs.underline);
         canvas.hide_place(shown.is_some());
         scene::paint(&mut canvas, &scene);
+        for (place, colour) in codes {
+            canvas.pixels(place, colour);
+        }
         self.redraw = false;
     }
 }

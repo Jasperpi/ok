@@ -54,7 +54,7 @@ fn desk() -> PathBuf {
 /// The essay of the hand-drawn proof: two paragraphs from its file and the
 /// rest typed in this sitting.
 fn essay() -> Rig {
-    let mut r = Rig::new(Options { file: Some(desk().join("College/The orchard.md")), folder: Some(desk()), look: None, store: false });
+    let mut r = Rig::new(Options { file: Some(desk().join("College/The orchard.md")), folder: Some(desk()), look: None, store: false, phone: false });
     r.size(1920, 1080);
     r.type_text("\nHe let me think that for about a week. Then he walked me to the one tree he had left alone on purpose, TK the year he planted it, and showed me what keeping all three looks like. The branches had split under the weight. The fruit was the size of walnuts and tasted of nothing. He did not say anything about it, which I have come to understand as a kind of teaching, the kind I got again in [[Grandfather interview]] when I asked what he would do differently and he said he would have **thinned harder**.");
     r.type_text("\nI think about that tree whenever I am asked to add one more thing to a week that is already full. For a long time I believed the answer was to keep all three and");

@@ -1,3 +1,6 @@
 /target
 /shots
 /dist
+/relay/public
+/relay/node_modules
+/relay/.wrangler

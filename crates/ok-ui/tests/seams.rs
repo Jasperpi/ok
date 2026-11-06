@@ -359,7 +359,7 @@ fn leaving_hands_the_session_everything_first() {
 #[test]
 fn the_memory_session_reads_a_folder_once_and_keeps_see_also_true_to_the_text() {
     let desk = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/desk");
-    let options = Options { file: Some(desk.join("College/Essay plan.md")), folder: Some(desk.clone()), look: None, store: false };
+    let options = Options { file: Some(desk.join("College/Essay plan.md")), folder: Some(desk.clone()), look: None, store: false, phone: false };
     let session = Memory::new(&options);
     assert_eq!(session.name(), "Essay plan");
     let names: Vec<(usize, &str, &str, bool)> = session.contents().iter().map(|entry| (entry.depth, entry.name.as_str(), entry.value.as_str(), entry.lit)).collect();
@@ -831,7 +831,7 @@ impl Flow for Dimmer {
 fn dimmer(text: &str) -> (Rig, Dimmer) {
     let flow = Dimmer::default();
     let desk = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/desk");
-    let options = Options { file: Some(desk.join("College/Essay plan.md")), folder: Some(desk), look: None, store: false };
+    let options = Options { file: Some(desk.join("College/Essay plan.md")), folder: Some(desk), look: None, store: false, phone: false };
     let mut rig = Rig::with_seams(Options::default(), Box::new(Memory::new(&options)), Box::new(Closed), Box::new(flow.clone()));
     rig.size(1920, 1080);
     rig.app.open_text(opened(text));
