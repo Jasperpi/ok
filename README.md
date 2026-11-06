@@ -27,7 +27,7 @@ Open ok, press **Esc**, type `phone` and press **Enter**. Scan a code with the p
 - **The code on the left** goes through a relay and works anywhere. Its page has a microphone: tap Speak and talk, and say *period*, *comma*, *new paragraph* or *scratch that*. Your words are sealed with a key only your phone and computer have; the relay cannot read them.
 - **The code on the right** goes straight to the computer over your Wi-Fi, and nothing leaves the house.
 
-Each page has a key to switch to the other. In Chrome, choose **Add to home screen** and ok is an app on the phone. Android works now; iPhone is next.
+Each page has a key to switch to the other. To keep ok on the phone like an app: on an iPhone, **Share**, then **Add to Home Screen**; on Android, Chrome's menu, then **Add to home screen**. On an iPhone, speaking uses its own dictation, which must be on in Settings, General, Keyboard.
 
 ## Using it
 

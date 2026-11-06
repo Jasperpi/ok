@@ -31,7 +31,7 @@ It needs an X11 or Wayland desktop.
 
 ## Your phone
 
-In ok press Esc, type `phone`, and scan a code with the phone's camera. The left code goes through the relay and has a microphone; the right one goes straight to the computer over the Wi-Fi. Android works now; iPhone is next.
+In ok press Esc, type `phone`, and scan a code with the phone's camera. The left code goes through the relay and has a microphone; the right one goes straight to the computer over the Wi-Fi. Android (Chrome) and iPhone (Safari) both work: add the page to the home screen and it opens like an app.
 
 The install wizard at https://jasperpi.github.io/ok/ walks through all of this.
 

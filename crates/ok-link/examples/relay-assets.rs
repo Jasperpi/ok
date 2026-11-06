@@ -12,6 +12,9 @@ fn main() {
         std::fs::write(dir.join(format!("icon-{size}.png")), ok_gfx::encode_png(icon.width(), icon.height(), icon.pixels())).unwrap();
     }
     std::fs::copy(dir.join("icon-192.png"), dir.join("icon.png")).unwrap();
+    // The size an iPhone asks for on its home screen.
+    let apple = ok_gfx::icon(180);
+    std::fs::write(dir.join("apple-touch-icon.png"), ok_gfx::encode_png(apple.width(), apple.height(), apple.pixels())).unwrap();
     std::fs::write(
         dir.join("manifest.webmanifest"),
         r##"{"name":"ok","short_name":"ok","start_url":"/","scope":"/","display":"standalone","background_color":"#35251A","theme_color":"#35251A","icons":[{"src":"/icon-192.png","sizes":"192x192","type":"image/png"},{"src":"/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"}]}"##,

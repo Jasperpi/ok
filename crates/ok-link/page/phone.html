@@ -20,6 +20,12 @@ Served two ways: by ok itself on the same Wi-Fi (plain HTTP, with the token
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#35251A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ok">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="ok-relay" content="{{RELAY}}">
 <meta name="referrer" content="no-referrer">
 <title>ok</title>
@@ -80,6 +86,16 @@ button {
   justify-content: flex-end;
   padding: var(--row) var(--cell) 0;
 }
+/* The words take what room is left, and lose their top lines first, so the
+   cursor and the machine line under it are always in view. */
+.view {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
 .words {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -93,6 +109,7 @@ button {
   color: var(--paper);
 }
 .machine {
+  flex: 0 0 auto;
   display: flex;
   gap: calc(var(--cell) * 2);
   white-space: nowrap;
@@ -202,7 +219,7 @@ button {
 </head>
 <body>
 <main class="sheet" aria-label="The end of the text on the computer">
-  <pre class="words" id="words" aria-live="off"><span id="before"></span><span class="heard" id="heard"></span><span class="cursor" id="cursor"> </span><span class="after" id="after"></span></pre>
+  <div class="view"><pre class="words" id="words" aria-live="off"><span id="before"></span><span class="heard" id="heard"></span><span class="cursor" id="cursor"> </span><span class="after" id="after"></span></pre></div>
   <div class="machine" aria-live="polite"><span class="ok" id="ok"></span><span class="name" id="name">ok</span><span id="count"></span></div>
 </main>
 <textarea class="typing" id="typing" rows="1" autocapitalize="sentences" autocomplete="off" spellcheck="true" enterkeyhint="enter" placeholder="Type here. It goes straight to the computer." aria-label="Type into ok on the computer"></textarea>
@@ -241,6 +258,10 @@ const $ = (id) => document.getElementById(id);
 const relayHost = (document.querySelector('meta[name="ok-relay"]').content || "").replace("{{RELAY}}", "");
 // Served by ok itself the address carries a token; served by the relay it does not.
 const onRelay = !new URLSearchParams(location.search).get("t");
+// An iPhone or iPad, Safari or any browser on it (they are all Safari inside).
+const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+// Opened from the home screen, as an app.
+const STANDALONE = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 let socket = null, key = null, room = "", token = "", status = null, deskThere = !onRelay;
@@ -386,7 +407,10 @@ function show(s) {
   $("count").textContent = `${s.words} ${s.words === 1 ? "word" : "words"}`;
   $("before").textContent = lastLines(s.before);
   $("after").textContent = s.after.split("\n")[0];
-  if (first) says(onRelay ? "Through the relay." : "On this Wi-Fi.");
+  if (first) {
+    says(onRelay ? "Through the relay." : "On this Wi-Fi.");
+    setTimeout(homeHint, 2500);
+  }
   if (s.direct) localStorage.setItem("ok-direct", s.direct);
   if (s.relay) localStorage.setItem("ok-relay", s.relay);
   offerSwitch(false);
@@ -506,7 +530,7 @@ function offerSwitch(urgent) {
 
 // ---------------------------------------------------------------- speaking
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-let hearing = null, listening = false, shown = "", wakeLock = null;
+let hearing = null, listening = false, shown = "", wakeLock = null, restarted = false;
 const live = () => $("live").getAttribute("aria-pressed") === "true";
 
 $("live").addEventListener("click", () => {
@@ -609,20 +633,31 @@ function startListening() {
   };
   hearing.onerror = (event) => {
     if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-      says("Allow the microphone in Chrome.", true);
       listening = false;
       showListening();
+      // An iPhone will not start listening again without a tap: after the
+      // first session that is a pause, not a refusal.
+      if (restarted) says("Tap Speak to go on.");
+      else says(IOS ? "Allow the microphone, and turn on Dictation in Settings, Keyboard." : "Allow the microphone in Chrome.", true);
     } else if (event.error === "network") {
       says("Speaking needs the internet.", true);
     }
   };
   hearing.onend = () => {
     $("heard-text").textContent = "";
-    if (shown) { change(shown, ""); shown = ""; }
-    // Android ends a session at every long pause; keep going while asked.
-    if (listening) setTimeout(() => { if (listening) { try { hearing.start(); } catch {} } }, 120);
+    // What was only heard so far is kept: a pause should not lose it.
+    if (shown) { const words = shown; shown = ""; said.unshift(words); $("scratch").disabled = false; }
+    // Android and iPhone end a session at a long pause; keep going while asked.
+    if (listening) {
+      setTimeout(() => {
+        if (!listening) return;
+        restarted = true;
+        try { hearing.start(); } catch { listening = false; showListening(); says("Tap Speak to go on."); }
+      }, 120);
+    }
   };
   listening = true;
+  restarted = false;
   try { hearing.start(); } catch {}
   showListening();
   if (navigator.wakeLock) navigator.wakeLock.request("screen").then((lock) => { wakeLock = lock; }).catch(() => {});
@@ -652,6 +687,28 @@ if (Recognition && window.isSecureContext) {
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && listening) stopListening();
 });
+
+// Safari lays the keyboard over the page instead of making the page
+// shorter: the page is fitted to what is still in view, so the line typed
+// into and the keys stay above the keyboard.
+if (window.visualViewport) {
+  const fit = () => {
+    document.body.style.height = `${Math.round(window.visualViewport.height)}px`;
+    window.scrollTo(0, 0);
+  };
+  window.visualViewport.addEventListener("resize", fit);
+  window.visualViewport.addEventListener("scroll", () => window.scrollTo(0, 0));
+  fit();
+}
+
+// Once, in the browser: how to keep ok on the home screen.
+function homeHint() {
+  if (STANDALONE || localStorage.getItem("ok-hinted")) return;
+  // Only over the greeting: anything said since matters more.
+  if ($("says").textContent !== (onRelay ? "Through the relay." : "On this Wi-Fi.")) return;
+  localStorage.setItem("ok-hinted", "1");
+  says(IOS ? "Share, then Add to Home Screen." : "Menu, then Add to home screen.");
+}
 
 // ------------------------------------------------------------------- start
 (async () => {

@@ -119,7 +119,7 @@ impl App {
             captions.push_str(caption);
         }
         text.push_str(&captions);
-        text.push_str("\n\nIn Chrome on the phone, choose Add to home screen from the menu, and ok opens there like an app. The code is needed only once.\n\nThrough the relay your words are sealed with a key only the phone and this computer hold. On the Wi-Fi they never leave the network.");
+        text.push_str("\n\nTo keep ok on the phone like an app: on an iPhone, Share, then Add to Home Screen; on Android, Chrome's menu, then Add to home screen. The code is needed only once.\n\nThrough the relay your words are sealed with a key only the phone and this computer hold. On the Wi-Fi they never leave the network.");
         self.show("Phone", &text, -1);
         self.phone.codes = codes;
         Ok(())

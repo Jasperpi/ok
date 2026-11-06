@@ -408,7 +408,7 @@ const STEPS = {
         el("p", {}, "From a phone you can type into ok, or talk and watch your words land on the computer's page."),
         list([
           { value: "android", name: "Android", note: "Chrome" },
-          { value: "iphone", name: "iPhone", note: "coming next" },
+          { value: "iphone", name: "iPhone", note: "Safari" },
           { value: "none", name: "No phone, thanks", note: "" },
         ], (v) => { chosen.phone = v; go(v === "none" ? "done" : v); }, chosen.phone || guessed.phone || "android"),
       ],
@@ -438,8 +438,14 @@ const STEPS = {
     return {
       title: "ok on iPhone",
       body: [
-        el("p", {}, "The iPhone version is being made, after the Android one is finished and in use."),
-        el("p", {}, "Until then, typing from Safari works the same way: in ok press Esc, type phone, and scan the code with the camera. Speaking may not, yet."),
+        el("ol", { class: "steps" },
+          el("li", {}, "Open ok on the computer. Press Esc, type phone, and press Enter. Two codes come up."),
+          el("li", {}, "Point the iPhone's camera at the code on the left, and tap the link that appears. It opens in Safari."),
+          el("li", {}, "Tap Share, then Add to Home Screen. ok is an app on the iPhone from now on."),
+          el("li", {}, "Type in the line, or tap Speak and allow the microphone. Say period, comma, new paragraph, or scratch that."),
+        ),
+        el("p", {}, "Speaking uses the iPhone's own dictation: if Speak is missing or says no, turn on Dictation in Settings, General, Keyboard. The iPhone stops listening at a long pause; tap Speak again to go on."),
+        el("p", {}, "The code on the right goes straight to the computer over your Wi-Fi. There, speak with the microphone key on the keyboard."),
       ],
       moves: [back(), next("done")],
       enter: () => go("done"),

@@ -118,7 +118,7 @@ fn serve(mut stream: TcpStream, shared: &Shared, icon: &[u8], relay: &str) -> io
             respond(&mut stream, "200 OK", "application/manifest+json", "no-store", manifest.as_bytes())
         }
         "/gallant.ttf" => respond(&mut stream, "200 OK", "font/ttf", "max-age=86400", font()),
-        "/icon.png" => respond(&mut stream, "200 OK", "image/png", "max-age=86400", icon),
+        "/icon.png" | "/apple-touch-icon.png" => respond(&mut stream, "200 OK", "image/png", "max-age=86400", icon),
         _ => {
             let body = "<!doctype html><meta name=viewport content='width=device-width'><title>ok</title><p style='font:18px monospace;padding:16px'>This address has changed. Scan the code on the computer again: Esc, then phone.</p>";
             respond(&mut stream, "403 Forbidden", "text/html; charset=utf-8", "no-store", body.as_bytes())
