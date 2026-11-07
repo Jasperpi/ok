@@ -35,6 +35,14 @@ Just type. Everything is saved as you go, into `ok` in your Documents folder as 
 
 **Esc** goes to the line at the foot of the sheet. There, a few letters of a title open a text, `#` goes to a heading, `/` finds, `set` changes the look, the face and the rest, and `keys` lists every key.
 
+Plain words on the line arrange the page: `box this`, `small`, `bigger`, `side by side`, `grid 3`, `board`, `move right 10`, `width 30`, `call it Food`, `unbox`. Before you press Enter, the line says what it will do. With the mouse, drag a frame by its left edge to move it and by its right edge to resize it. All of it is saved as ordinary Markdown fences:
+
+```
+::: box Packing
+tent, stove, headlamps
+:::
+```
+
 ## Building it
 
 ```bash

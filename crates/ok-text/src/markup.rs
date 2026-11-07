@@ -30,6 +30,9 @@ pub enum LineKind {
     Fence,
     /// Any line between an opening fence and its closing fence.
     Code,
+    /// Three or more colons after at most three spaces: opens a block, or
+    /// closes one (see [`crate::blocks`]).
+    Div,
     /// Three or more of the same one of `-`, `*` and `_`, with nothing else
     /// on the line but spaces.
     Rule,
@@ -59,6 +62,8 @@ pub fn classify_line(line: &str, in_fence: bool) -> LineKind {
         LineKind::Fence
     } else if in_fence {
         LineKind::Code
+    } else if crate::blocks::is_fence(line) {
+        LineKind::Div
     } else if line.chars().all(char::is_whitespace) {
         LineKind::Blank
     } else if is_rule(line) {
@@ -193,7 +198,7 @@ pub struct Piece {
 /// may run across code, links and addresses, which keep their own style.
 pub fn pieces(line: &str, kind: LineKind) -> Vec<Piece> {
     let mut out = Out { pieces: Vec::new(), at: 0 };
-    if kind == LineKind::Rule {
+    if matches!(kind, LineKind::Rule | LineKind::Div) {
         out.to(line.len(), Style::Syntax);
     } else if let Some(layout) = Layout::of(line, kind) {
         out.to(layout.indent, Style::Plain);
@@ -253,7 +258,7 @@ impl Layout {
     fn of(line: &str, kind: LineKind) -> Option<Layout> {
         let len = line.len();
         let (indent, text, stop, tail) = match kind {
-            LineKind::Code | LineKind::Fence | LineKind::Rule => return None,
+            LineKind::Code | LineKind::Fence | LineKind::Rule | LineKind::Div => return None,
             LineKind::Blank | LineKind::Text => (0, 0, len, len),
             LineKind::Heading(_) => Head::of(line).map_or((0, 0, len, len), |head| (0, head.body, head.stop, head.tail)),
             LineKind::Quote => quote_end(line).map_or((0, 0, len, len), |end| (end - 1, end, len, len)),
@@ -771,6 +776,7 @@ mod tests {
         LineKind::Fence,
         LineKind::Code,
         LineKind::Rule,
+        LineKind::Div,
         LineKind::Text,
     ];
 
@@ -1154,7 +1160,7 @@ mod tests {
         }
         match kind {
             LineKind::Code | LineKind::Fence => assert_eq!(found, [Piece { start: 0, end: line.len(), style: Plain }]),
-            LineKind::Rule => assert_eq!(found, [Piece { start: 0, end: line.len(), style: Syntax }]),
+            LineKind::Rule | LineKind::Div => assert_eq!(found, [Piece { start: 0, end: line.len(), style: Syntax }]),
             _ => {}
         }
         found
@@ -1179,7 +1185,7 @@ mod tests {
                 LineKind::Heading(_) => 1,
                 LineKind::Quote => 2,
                 LineKind::Item => 3,
-                LineKind::Fence => 4,
+                LineKind::Fence | LineKind::Div => 4,
                 LineKind::Rule => 5,
                 LineKind::Text => 6,
                 LineKind::Code => 7,

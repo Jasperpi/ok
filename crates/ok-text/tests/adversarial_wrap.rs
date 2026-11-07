@@ -1634,8 +1634,8 @@ fn api_has_the_signatures_the_contract_lists() {
     let _: fn(&mut Layout, &Doc, &Change, &dyn Fn(usize, &str) -> Shape) = Layout::apply;
     let _: fn(&Layout, usize) -> Shape = Layout::shape;
     let _: fn(usize) -> Shape = Shape::hanging;
-    assert_eq!(Shape::default(), Shape { hung: 0, scale: 1, hang: 0, inset: 0 });
-    assert_eq!(Shape::hanging(3), Shape { hung: 0, scale: 1, hang: 3, inset: 0 });
+    assert_eq!(Shape::default(), Shape { hung: 0, scale: 1, hang: 0, inset: 0, fence: false, small: false });
+    assert_eq!(Shape::hanging(3), Shape { hung: 0, scale: 1, hang: 3, inset: 0, fence: false, small: false });
     let _: fn(&Layout) -> usize = Layout::total_rows;
     let _: fn(&Layout, usize) -> &[Row] = Layout::rows;
     let _: fn(&Layout, usize) -> usize = Layout::first_row;
@@ -2495,19 +2495,19 @@ fn shape_wild(at: usize, line: &str) -> Shape {
     };
     let scale = [1, 2, 1, 2, 0, 9, 2][(pick / 7) % 7];
     let inset = [0, 0, 1, 4, 0, usize::MAX, 2][(pick / 49) % 7];
-    Shape { hung, scale, hang: hang_wild(line), inset }
+    Shape { hung, scale, hang: hang_wild(line), inset, fence: false, small: false }
 }
 
 /// A shape as the layout is to use it, worked out the long way.
 fn model_shape(line: &str, measure: usize, shape: Shape) -> Shape {
-    let scale = if shape.scale >= 2 { 2 } else { 1 };
+    let scale = shape.scale.clamp(1, 3);
     let mut hung = shape.hung.min(line.len());
     while !line.is_char_boundary(hung) {
         hung -= 1;
     }
     let room = (measure / scale).max(1);
     let fits = shape.inset.checked_mul(2).is_some_and(|both| both < room);
-    Shape { hung, scale, hang: shape.hang, inset: if fits { shape.inset } else { 0 } }
+    Shape { hung, scale, hang: shape.hang, inset: if fits { shape.inset } else { 0 }, fence: false, small: false }
 }
 
 /// A shaped document laid out on the grid.

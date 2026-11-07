@@ -35,6 +35,20 @@ In ok press Esc, type `phone`, and scan a code with the phone's camera. The left
 
 The install wizard at https://jasperpi.github.io/ok/ walks through all of this.
 
+## New in 0.4: structure on the page
+
+Plain words on the line arrange the page, and the line says what Enter will do before you press it:
+
+- `box this` puts a frame round the paragraph (`box this called Packing` names it); `unbox` takes it away and keeps the words.
+- `small`, `bigger`, `smaller`, `huge`: small type, double and triple size, a step at a time.
+- `side by side` sets this paragraph beside the next; `grid 3` sets the parts from here three to a row.
+- `board` makes a surface where notes go anywhere: `move right 10`, `move to 12 4`, or drag them.
+- `move up`, `move down`, `width 30`, `wider`, `call it Food`.
+
+With the mouse, take a frame by its left edge to move it and by its right edge to resize it. Everything is one step for Ctrl Z, and it is all saved as ordinary Markdown fences (`::: box Packing` ... `:::`) that other editors read.
+
+The phone's dictation no longer types a sentence twice on Android, and its keys are down to Speak, Return, Scratch and More.
+
 ## What is in it
 
 - Type, and it is kept. `ok` is printed once everything is flushed to disk.

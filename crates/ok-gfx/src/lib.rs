@@ -23,7 +23,7 @@ mod outline;
 mod png;
 mod psf;
 
-pub use builtin::{face_notices, gallant, spleen, terminus};
+pub use builtin::{face_notices, gallant, small, spleen, terminus};
 pub use cluster::{clusters, Clusters};
 pub use color::{blend_px, Rgb};
 pub use face::{Face, FaceSet, MAX_MARKS};

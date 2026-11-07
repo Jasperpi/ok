@@ -1103,7 +1103,10 @@ fn escaping_every_markup_character_leaves_nothing_styled() {
         let kind = classify_line(&line, false);
         assert!(!matches!(kind, K::Heading(_) | K::Quote | K::Rule) || put.is_empty(), "{line:?} is {kind:?}");
         let found = sound(&line, kind);
-        if kind == K::Fence {
+        // A fence of either kind is all marks or all code: colons are not
+        // escaped here, and a backslash before the first one is what would
+        // make a block fence plain.
+        if matches!(kind, K::Fence | K::Div) {
             continue;
         }
         let style_at = |at: usize| found.iter().find(|p| p.start <= at && at < p.end).map(|p| p.style);

@@ -121,15 +121,24 @@ pub fn paint(c: &mut Canvas, s: &Scene) {
     let flag_at = |y: i32| Rect::new(g.area.x + g.area.w + (MARGIN + 2) * grid.scale, y, 4 * grid.scale, tick);
     c.confine_pixels(Rect::new(g.left, g.area.y, wide, g.area.h));
     let mut flags: Vec<Rect> = Vec::new();
-    let (mut line, _) = layout.line_of_row(g.first);
+    let mut line = layout.first_line_from(g.first);
+    let column = layout.is_column();
     while line < doc.line_count() {
         let top = layout.first_row(line);
         if top >= end {
-            break;
+            // Beside other lines or on a board, a later line can be higher.
+            if column || layout.none_above_from(line, end) {
+                break;
+            }
+            line += 1;
+            continue;
         }
         let text = doc.line(line);
         let scale = layout.shape(line).scale;
         let square = g.letter * scale as i32;
+        // Small type is half as wide here too.
+        let across = if layout.shape(line).small { (g.letter / 2).max(1) } else { square };
+        let left = g.left + layout.place_of(line).left as i32 * g.letter;
         let written = if s.today != 0 && s.page.stamp(line) == s.today { today } else { older };
         // The byte of this line from which it is past the limit.
         let past_from = match over {
@@ -144,7 +153,7 @@ pub fn paint(c: &mut Canvas, s: &Scene) {
             let mut run: Option<(i32, usize)> = None;
             let dash = |c: &mut Canvas, (from, byte): (i32, usize), to: i32| {
                 let colour = if byte >= past_from { past } else { written };
-                c.pixels(Rect::new(g.left + from * square, y, (to - from) * square, square), colour);
+                c.pixels(Rect::new(left + from * across, y, (to - from) * across, square), colour);
             };
             for (at, ch) in text.get(row.start..row.end).unwrap_or("").char_indices() {
                 let cells = cell_width(ch) as i32;
@@ -159,7 +168,7 @@ pub fn paint(c: &mut Canvas, s: &Scene) {
                     run = Some((cell, row.start + at));
                 }
                 cell += cells;
-                if cell * square > wide {
+                if cell * across > wide {
                     break;
                 }
             }

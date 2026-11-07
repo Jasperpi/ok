@@ -68,16 +68,17 @@ pub fn shape_of(kind: LineKind, line: &str, measure: usize) -> Shape {
         LineKind::Heading(level) if level as usize <= HANGS => {
             let marks = level as usize;
             let gap = matches!(line.as_bytes().get(marks), Some(b' ' | b'\t'));
-            Shape { hung: with_riders(line, marks + usize::from(gap)), scale: if level == 1 { 2 } else { 1 }, hang: 0, inset: 0 }
+            Shape { hung: with_riders(line, marks + usize::from(gap)), scale: if level == 1 { 2 } else { 1 }, ..Shape::default() }
         }
         LineKind::Quote => {
             // A list inside a quote keeps its hang: its rows turn over under
             // the item's first letter, as every other list's do.
             let hung = with_riders(line, quote_mark(line));
             let hang = line.get(hung..).map_or(0, markup::hang_of).min(measure / 4);
-            Shape { hung, scale: 1, hang, inset: QUOTE_INSET }
+            Shape { hung, scale: 1, hang, inset: QUOTE_INSET, fence: false, small: false }
         }
         LineKind::Item => Shape::hanging(markup::hang_of(line).min(measure / 2)),
+        LineKind::Div => Shape { fence: true, ..Shape::default() },
         _ => Shape::default(),
     }
 }
@@ -205,6 +206,9 @@ pub struct Caret {
     pub cell: i32,
     /// 2 on a double-size line, where the cursor is two cells each way.
     pub size: usize,
+    /// On a line of small type: half cells of the grid from the first
+    /// column of the text, where the cursor, half a cell wide, is drawn.
+    pub half: Option<i32>,
 }
 
 /// One text being written.
@@ -870,12 +874,15 @@ impl Page {
             // is the change bars'; the cursor on it rests in the empty column
             // before the text. No cursor goes into the sheet's edge column.
             let cell = if after == 0 { -1 } else { (-2 - after).max(-5) };
-            return Caret { line: head.line, row: self.layout.first_row(head.line) + shape.scale - 1, cell, size: 1 };
+            // In a frame, the mark hangs in the frame's edge, not the gutter.
+            let cell = cell + self.layout.place_of(head.line).left as i32;
+            return Caret { line: head.line, row: self.layout.first_row(head.line) + shape.scale - 1, cell, size: 1, half: None };
         }
         let (row, cell) = self.layout.locate(&self.doc, head);
         // Whitespace may hang past the measure; the cursor rests one cell
         // past it and no further.
-        Caret { line: head.line, row, cell: cell.min(self.measure) as i32, size: shape.scale }
+        let half = shape.small.then(|| (self.layout.locate_half(&self.doc, head).1.min(self.measure * 2 + 1)) as i32);
+        Caret { line: head.line, row, cell: cell.min(self.measure) as i32, size: shape.scale, half }
     }
 
     /// The position under a cell of the page: `row` a row of the paper,
@@ -917,19 +924,19 @@ mod tests {
     #[test]
     fn a_line_is_shaped_by_what_it_is() {
         let shape = |line: &str| shape_of(markup::classify_line(line, false), line, 66);
-        assert_eq!(shape("# The orchard"), Shape { hung: 2, scale: 2, hang: 0, inset: 0 });
-        assert_eq!(shape("#"), Shape { hung: 1, scale: 2, hang: 0, inset: 0 });
-        assert_eq!(shape("## Where it is weak"), Shape { hung: 3, scale: 1, hang: 0, inset: 0 });
-        assert_eq!(shape("### Third"), Shape { hung: 4, scale: 1, hang: 0, inset: 0 });
+        assert_eq!(shape("# The orchard"), Shape { hung: 2, scale: 2, hang: 0, inset: 0, fence: false, small: false });
+        assert_eq!(shape("#"), Shape { hung: 1, scale: 2, hang: 0, inset: 0, fence: false, small: false });
+        assert_eq!(shape("## Where it is weak"), Shape { hung: 3, scale: 1, hang: 0, inset: 0, fence: false, small: false });
+        assert_eq!(shape("### Third"), Shape { hung: 4, scale: 1, hang: 0, inset: 0, fence: false, small: false });
         assert_eq!(shape("#### Deep"), Shape::default());
         assert_eq!(shape("###### Deepest"), Shape::default());
-        assert_eq!(shape("> a quote"), Shape { hung: 2, scale: 1, hang: 0, inset: 4 });
-        assert_eq!(shape(">bare"), Shape { hung: 1, scale: 1, hang: 0, inset: 4 });
+        assert_eq!(shape("> a quote"), Shape { hung: 2, scale: 1, hang: 0, inset: 4, fence: false, small: false });
+        assert_eq!(shape(">bare"), Shape { hung: 1, scale: 1, hang: 0, inset: 4, fence: false, small: false });
         // A mark typed straight after the hung mark rides on it and hangs with it.
-        assert_eq!(shape(">\u{200D}x"), Shape { hung: 4, scale: 1, hang: 0, inset: 4 });
-        assert_eq!(shape("# \u{0301}e"), Shape { hung: 4, scale: 2, hang: 0, inset: 0 });
-        assert_eq!(shape("> - a list in a quote"), Shape { hung: 2, scale: 1, hang: 2, inset: 4 });
-        assert_eq!(shape("> 12. numbered"), Shape { hung: 2, scale: 1, hang: 4, inset: 4 });
+        assert_eq!(shape(">\u{200D}x"), Shape { hung: 4, scale: 1, hang: 0, inset: 4, fence: false, small: false });
+        assert_eq!(shape("# \u{0301}e"), Shape { hung: 4, scale: 2, hang: 0, inset: 0, fence: false, small: false });
+        assert_eq!(shape("> - a list in a quote"), Shape { hung: 2, scale: 1, hang: 2, inset: 4, fence: false, small: false });
+        assert_eq!(shape("> 12. numbered"), Shape { hung: 2, scale: 1, hang: 4, inset: 4, fence: false, small: false });
         assert_eq!(shape("- item"), Shape::hanging(2));
         assert_eq!(shape("  12. item"), Shape::hanging(6));
         assert_eq!(shape("- [ ] task"), Shape::hanging(6));

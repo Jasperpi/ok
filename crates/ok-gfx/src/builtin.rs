@@ -9,6 +9,9 @@ static GALLANT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/gallant.bin"))
 
 static SPLEEN: &str = include_str!("../fonts/spleen/spleen-12x24.bdf");
 
+/// Spleen at half the width of a cell, for small type.
+static SPLEEN_SMALL: &str = include_str!("../fonts/spleen/spleen-6x12.bdf");
+
 /// Terminus is kept as the exact bytes of its BDF and read at run time. Its
 /// licence reserves the name "Terminus Font" for unmodified copies, and a
 /// table converted at build time would be a modified one.
@@ -33,6 +36,13 @@ pub fn gallant() -> &'static BitmapFont {
 pub fn spleen() -> &'static BitmapFont {
     static FACE: OnceLock<BitmapFont> = OnceLock::new();
     FACE.get_or_init(|| or_empty("Spleen", (12, 24), BitmapFont::from_bdf("Spleen", SPLEEN)))
+}
+
+/// Spleen 6 by 12, the face of small type whatever face is chosen: half a
+/// cell wide, set on the same baseline as the words round it.
+pub fn small() -> &'static BitmapFont {
+    static FACE: OnceLock<BitmapFont> = OnceLock::new();
+    FACE.get_or_init(|| or_empty("Spleen small", (6, 12), BitmapFont::from_bdf("Spleen small", SPLEEN_SMALL)))
 }
 
 /// Terminus 11 by 22: 1,356 glyphs.
@@ -63,6 +73,16 @@ mod tests {
         let on_disk = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/fonts/terminus/ter-u22n.bdf")).unwrap();
         assert_eq!(TERMINUS.as_bytes(), &on_disk[..]);
         assert_eq!(on_disk.len(), 267_801);
+    }
+
+    #[test]
+    fn the_small_face_is_half_a_cell_and_has_the_latin_letters() {
+        let face = small();
+        assert_eq!(face.cell(), (6, 12));
+        assert!(face.len() > 500, "{}", face.len());
+        for ch in "The quick brown fox, 1234567890. \u{e9}\u{f1}\u{fc}".chars() {
+            assert!(face.has(ch), "{ch:?}");
+        }
     }
 
     #[test]

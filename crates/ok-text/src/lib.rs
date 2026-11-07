@@ -6,6 +6,8 @@
 //! No I/O, no drawing, no dependencies. Positions are byte offsets that always
 //! sit on a character boundary.
 
+pub mod arrange;
+pub mod blocks;
 pub mod count;
 pub mod doc;
 pub mod fuzzy;

@@ -27,6 +27,7 @@ use crate::platen::View;
 use crate::scene::{self, Scene};
 use crate::session::{self, Opened, Options, Session};
 
+mod grab;
 mod phone;
 
 /// The settings the interface reads that are plain numbers and switches.
@@ -183,6 +184,8 @@ pub struct App {
     mods: Mods,
     hold: Option<Hold>,
     dragging: bool,
+    /// A frame held by its edge with the mouse.
+    grab: Option<grab::Grab>,
     focused: bool,
     fullscreen: bool,
     quit: bool,
@@ -232,6 +235,7 @@ impl App {
             mods: Mods::NONE,
             hold: None,
             dragging: false,
+            grab: None,
             focused: true,
             fullscreen: true,
             quit: false,
@@ -894,12 +898,16 @@ impl App {
                 self.view.finish();
                 if let Some(pos) = map::click(&self.grid, &self.page, x, y) {
                     self.go(pos);
+                } else if let Some(grab) = self.grab_at(x, y) {
+                    self.grab = Some(grab);
                 } else if let Some(pos) = self.pos_under(x, y) {
                     self.page.place(pos, mods.shift);
                     self.dragging = true;
                 }
                 self.with_line(host, |line, app, host| line.moved_on_page(app, host));
             }
+            MouseKind::Move if self.grab.is_some() => self.grab_move(x, y),
+            MouseKind::Up if self.grab.is_some() => self.grab_drop(host),
             MouseKind::Move if self.dragging => {
                 if let Some(pos) = self.pos_under(x, y) {
                     self.page.place(pos, true);
@@ -1057,7 +1065,8 @@ impl Program for App {
             focused: self.focused,
             said: saying(self.hold, self.mods, &self.said, now_ms),
         };
-        let codes = self.phone_draw();
+        let mut codes = self.phone_draw();
+        codes.extend(self.grab_draw());
         let mut canvas = Canvas::new(frame, &mut self.faces, host, &self.grid, &self.look, &mut self.screen);
         canvas.underline_cursor(self.prefs.underline);
         canvas.hide_place(shown.is_some());

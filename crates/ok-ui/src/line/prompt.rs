@@ -14,6 +14,7 @@
 use std::path::Path;
 
 use ok_host::{Host, Key, Mods};
+use ok_text::arrange;
 use ok_text::fuzzy::fuzzy;
 use ok_text::history::{Cursor, EditKind};
 use ok_text::markup::{self, LineKind};
@@ -80,6 +81,9 @@ enum Ask<'a> {
     /// The codes a phone scans to type in.
     Phone,
     Quit,
+    /// Plain words that arrange the page: `box this`, `bigger`, `side by
+    /// side` (see `ok_text::arrange`).
+    Arrange(&'a str),
 }
 
 /// Reads the line. `set` and `rename` are known by the first word; the
@@ -111,6 +115,7 @@ fn ask(typed: &str) -> Ask<'_> {
         "notices" => Ask::Notices,
         "phone" => Ask::Phone,
         "quit" => Ask::Quit,
+        _ if arrange::read(whole).is_some() => Ask::Arrange(whole),
         _ => Ask::Title(whole),
     }
 }
@@ -552,6 +557,13 @@ impl Prompt {
             Ask::Notices => self.word(app, String::from("Enter shows the licences of the faces and code in the .exe.")),
             Ask::Phone => self.word(app, String::from("Enter shows the code a phone scans to type in here.")),
             Ask::Quit => self.word(app, String::from("Enter leaves. Nothing can be lost.")),
+            Ask::Arrange(words) => {
+                let sentence = match self.arrangement(words, app) {
+                    Ok(plan) => plan.will,
+                    Err(why) => why,
+                };
+                self.word(app, sentence);
+            }
         }
         self.typed = typed;
     }
@@ -1143,6 +1155,7 @@ impl Prompt {
             Ask::Keys => self.read_page(true, app, host),
             Ask::Notices => self.read_page(false, app, host),
             Ask::Phone => self.read_phone(app, host),
+            Ask::Arrange(words) => self.arrange(words, app, host),
             Ask::Quit => {
                 self.finish(app, false);
                 app.leave(host);
@@ -1205,6 +1218,37 @@ impl Prompt {
         app.keep_settings();
         self.last_set = Some(opt.name);
         self.retype(String::from("set"), app, host);
+    }
+
+    /// What arranging words come to on the text: the one edit they make,
+    /// or why there is none.
+    fn arrangement(&self, words: &str, app: &App) -> Result<arrange::Plan, String> {
+        let order = arrange::read(words).ok_or_else(|| String::from("? Those words arrange nothing."))?;
+        let page = app.page();
+        if page.read_only {
+            return Err(String::from(READ_ONLY));
+        }
+        arrange::plan(page.doc(), page.cursor.span(), page.cursor.head, page.measure(), &order)
+    }
+
+    /// Arranging words and Enter: the page is changed in one step, and the
+    /// cursor goes back to it.
+    fn arrange(&mut self, words: &str, app: &mut App, host: &mut dyn Host) {
+        let plan = match self.arrangement(words, app) {
+            Ok(plan) => plan,
+            Err(why) => {
+                self.mistake = Some(why);
+                return;
+            }
+        };
+        let cursor = Cursor::at(plan.cursor);
+        if !app.edit(host, |page, clock| page.replace(plan.span, &plan.text, EditKind::Other, Some(cursor), clock)) {
+            self.mistake = Some(String::from("? That would change nothing."));
+            return;
+        }
+        // The cursor stays where the edit put it, on the words it was on.
+        self.finish(app, true);
+        app.say(plan.done);
     }
 
     /// `/old/new` and Enter: this one is changed, and the cursor moves on

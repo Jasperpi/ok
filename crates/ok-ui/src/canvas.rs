@@ -12,7 +12,7 @@
 //! switching faces is a matter of changing the `FaceSet` and the grid's cell
 //! and touches nothing here.
 
-use ok_gfx::{clusters, FaceSet, Frame, Pen, Rect, Rgb};
+use ok_gfx::{clusters, draw_glyph, FaceSet, Frame, Pen, Rect, Rgb};
 use ok_host::Host;
 use ok_text::{cell_width, str_width};
 
@@ -31,6 +31,9 @@ pub struct Ink {
     pub inverse: bool,
     /// Double size: each glyph two cells wide and two rows tall.
     pub big: bool,
+    /// Triple size, which outranks `big`: three cells wide and three rows
+    /// tall.
+    pub huge: bool,
 }
 
 impl Ink {
@@ -40,7 +43,7 @@ impl Ink {
 
     /// Plain text at one strength.
     pub const fn at(strength: Strength) -> Ink {
-        Ink { strength, double: false, under: false, inverse: false, big: false }
+        Ink { strength, double: false, under: false, inverse: false, big: false, huge: false }
     }
 
     pub const fn inverse(mut self, on: bool) -> Ink {
@@ -55,11 +58,20 @@ impl Ink {
 
     /// Grid cells one cell of this text takes each way.
     pub const fn size(&self) -> i32 {
-        if self.big {
+        if self.huge {
+            3
+        } else if self.big {
             2
         } else {
             1
         }
+    }
+
+    /// Ink at a line's size: 1, 2 or 3.
+    pub const fn sized(mut self, scale: usize) -> Ink {
+        self.big = scale >= 2;
+        self.huge = scale >= 3;
+        self
     }
 }
 
@@ -365,10 +377,138 @@ impl<'a> Canvas<'a> {
                         double: ink.double,
                         under: ink.under,
                         inverse: ink.inverse,
-                        big: ink.big,
+                        big: ink.big || ink.huge,
                     };
                 }
             }
+        }
+    }
+
+    /// The left edge of half cell `half` of the grid, in pixels.
+    fn half_x(&self, half: i32) -> i32 {
+        let origin = self.grid.cells(0, 0, 1, 1).x as i64;
+        (origin + half as i64 * self.grid.cell_w as i64 / 2).clamp(-(1 << 30), 1 << 30) as i32
+    }
+
+    /// The rectangle of `wide` half cells from half cell `half` on `row`.
+    fn half_block(&self, half: i32, row: i32, wide: i32) -> Rect {
+        let y = self.block(0, row, 1, 1).y;
+        let x = self.half_x(half);
+        Rect::new(x, y, self.half_x(half.saturating_add(wide.max(0))) - x, self.grid.cell_h)
+    }
+
+    /// Small type: `text` drawn from half cell `half` of the grid (two to a
+    /// column, counted from column 0) on `row`, in the small face, its
+    /// baseline on the baseline of the words round it. Returns how many half
+    /// cells it took. A character the small face lacks is drawn as a small
+    /// empty box. The screen records each character in the cell its left
+    /// edge falls in.
+    pub fn text_small(&mut self, surface: Surface, half: i32, row: i32, text: &str, ink: Ink) -> i32 {
+        let face = ok_gfx::small();
+        let scale = self.grid.scale.max(1);
+        let fore = self.look.shade(surface, ink.strength);
+        let ground = self.look.ground(surface);
+        let lift = (self.faces.ascent() as i32 - face.ascent() as i32).max(0) * scale;
+        let mut at = half;
+        for piece in clusters(text) {
+            let cells = str_width(piece).min(8) as i32;
+            let place = self.half_block(at, row, cells.max(1));
+            if ink.inverse && cells > 0 {
+                self.frame.fill(place, fore);
+            }
+            let colour = if ink.inverse { ground } else { fore };
+            let pen = Pen::new(colour).scale(scale as u32).bold(ink.double);
+            let first = piece.chars().next().unwrap_or(' ');
+            if !matches!(first, ' ' | '\t') && !ink.strength.is_ground() {
+                for ch in piece.chars() {
+                    match face.glyph(ch) {
+                        Some(glyph) => draw_glyph(self.frame, glyph, place.x, place.y + lift, pen),
+                        None if cell_width(ch) > 0 => {
+                            let (w, h) = (face.cell().0 as i32 * scale, face.ascent() as i32 * scale);
+                            let boxed = Rect::new(place.x + scale, place.y + lift + scale, w - 2 * scale, h - scale);
+                            for edge in [
+                                Rect::new(boxed.x, boxed.y, boxed.w, scale),
+                                Rect::new(boxed.x, boxed.bottom() - scale, boxed.w, scale),
+                                Rect::new(boxed.x, boxed.y, scale, boxed.h),
+                                Rect::new(boxed.right() - scale, boxed.y, scale, boxed.h),
+                            ] {
+                                self.frame.fill(edge, colour);
+                            }
+                        }
+                        None => {}
+                    }
+                }
+            }
+            if ink.under && cells > 0 && !ink.strength.is_ground() {
+                let y = place.y + lift + (face.ascent() as i32 + 1) * scale;
+                self.frame.fill(Rect::new(place.x, y, place.w, scale), colour);
+            }
+            if cells > 0 {
+                let col = at.div_euclid(2);
+                if self.records(col, row) {
+                    let filling = piece.chars().find(|&ch| cell_width(ch) > 0).unwrap_or(first);
+                    let shown = if filling == '\t' { ' ' } else { filling };
+                    if let Some(cell) = self.screen.slot(col, row) {
+                        if at % 2 == 0 || cell.strength.is_ground() {
+                            *cell = Cell { ch: shown, surface, strength: ink.strength, double: ink.double, under: ink.under, inverse: ink.inverse, big: false };
+                        }
+                    }
+                }
+            }
+            at = at.saturating_add(cells);
+        }
+        at.saturating_sub(half)
+    }
+
+    /// The solid cursor on small type: half a cell wide and a row tall, in
+    /// the mark colour, with the character it is on left as ground.
+    pub fn cursor_small(&mut self, surface: Surface, half: i32, row: i32, piece: &str, ink: Ink) {
+        let cells = str_width(piece).clamp(1, 2) as i32;
+        let place = self.half_block(half, row, cells);
+        let mark = self.look.mark_on(surface);
+        if self.underline {
+            self.text_small(surface, half, row, piece, Ink { inverse: false, ..ink });
+            let scale = self.grid.scale.max(1);
+            self.frame.fill(Rect::new(place.x, place.bottom() - 2 * scale, place.w, 2 * scale), mark);
+        } else {
+            self.frame.fill(place, mark);
+            let ground = self.look.ground(surface);
+            self.text_small_in(half, row, piece, ink, ground);
+        }
+        if self.records(half.div_euclid(2), row) {
+            self.screen.cursor = Some(CursorBox { col: half.div_euclid(2), row, wide: 1, tall: 1, hollow: false });
+        }
+    }
+
+    /// Small type in one given colour over whatever is there, for the
+    /// character under the cursor.
+    fn text_small_in(&mut self, half: i32, row: i32, piece: &str, ink: Ink, colour: Rgb) {
+        let face = ok_gfx::small();
+        let scale = self.grid.scale.max(1);
+        let lift = (self.faces.ascent() as i32 - face.ascent() as i32).max(0) * scale;
+        let place = self.half_block(half, row, 1);
+        let pen = Pen::new(colour).scale(scale as u32).bold(ink.double);
+        for ch in piece.chars().filter(|ch| !matches!(ch, ' ' | '\t')) {
+            if let Some(glyph) = face.glyph(ch) {
+                draw_glyph(self.frame, glyph, place.x, place.y + lift, pen);
+            }
+        }
+    }
+
+    /// The hollow cursor on small type: the outline of half a cell.
+    pub fn hollow_small(&mut self, surface: Surface, half: i32, row: i32) {
+        if self.placeless {
+            return;
+        }
+        let place = self.half_block(half, row, 1);
+        let mark = self.look.mark_on(surface);
+        let line = self.grid.scale;
+        self.frame.fill(Rect::new(place.x, place.y, place.w, line), mark);
+        self.frame.fill(Rect::new(place.x, place.bottom() - line, place.w, line), mark);
+        self.frame.fill(Rect::new(place.x, place.y, line, place.h), mark);
+        self.frame.fill(Rect::new(place.right() - line, place.y, line, place.h), mark);
+        if self.records(half.div_euclid(2), row) {
+            self.screen.kept = Some(CursorBox { col: half.div_euclid(2), row, wide: 1, tall: 1, hollow: true });
         }
     }
 
@@ -467,6 +607,25 @@ impl<'a> Canvas<'a> {
                 }
             }
         }
+    }
+
+    /// A rule drawn through the middle of a stretch of cells: across them
+    /// when `across`, else down them, from the middle of the first cell to
+    /// the middle of the last. One pixel at scale 1.
+    pub fn rule(&mut self, surface: Surface, (col, row): (i32, i32), cells: i32, across: bool, strength: Strength) {
+        if cells <= 0 {
+            return;
+        }
+        let (wide, tall) = if across { (cells, 1) } else { (1, cells) };
+        let place = self.block(col, row, wide, tall);
+        let weight = self.grid.scale.max(1);
+        let (half_w, half_h) = (self.grid.cell_w / 2, self.grid.cell_h / 2);
+        let stroke = if across {
+            Rect::new(place.x + half_w, place.y + half_h, (place.w - 2 * half_w).max(weight), weight)
+        } else {
+            Rect::new(place.x + half_w, place.y + half_h, weight, (place.h - 2 * half_h).max(weight))
+        };
+        self.frame.fill(stroke, self.look.shade(surface, strength));
     }
 
     /// Fills pixels directly, for the map, which is not made of cells. The

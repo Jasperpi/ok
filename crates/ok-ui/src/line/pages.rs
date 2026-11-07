@@ -69,7 +69,28 @@ keys                    This page.
 notices                 The licences of the faces and code.
 phone                   A code for the phone: what you type or
                         say on it goes in here.
-quit                    Leaves.";
+quit                    Leaves.
+
+## Arranging the page
+
+box this                A frame round this paragraph, or round
+                        what is selected. Add called and a name.
+bigger, smaller         Small type, the page's own size, double
+                        size and triple, a step at a time.
+side by side            This and the next part, in columns.
+grid 3                  This and the parts after it, three to a
+                        row. On an empty line, empty boxes.
+board                   A surface where notes go anywhere.
+move up, move down      Past the next part. On a board, move
+                        right 10, move down 2, move to 12 4.
+width 30, wider         How wide the block is. full width undoes.
+call it Food            Names the block.
+unbox                   Takes the block away, keeps the words.
+
+The say row tells you what Enter will do before you press it, and
+Ctrl Z takes back any of them in one step. With the mouse, take a
+frame by its left edge or its rule to move it, and by its right
+edge to make it wider or narrower.";
 
 /// The licences of the faces and the code inside the .exe.
 const NOTICES: &str = include_str!("../../NOTICES.txt");
@@ -173,7 +194,7 @@ mod tests {
         let lines: Vec<String> = KEYS.lines().map(str::to_string).collect();
         let kinds = markup::classify(&lines);
         let headings = kinds.iter().filter(|kind| matches!(kind, LineKind::Heading(_))).count();
-        assert_eq!(headings, 4);
+        assert_eq!(headings, 5);
         assert!(kinds.iter().all(|kind| matches!(kind, LineKind::Heading(_) | LineKind::Text | LineKind::Blank)));
     }
 

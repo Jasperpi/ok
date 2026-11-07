@@ -13,7 +13,7 @@
 use ok_gfx::clusters;
 use ok_text::links::links_in;
 use ok_text::markup::{self, LineKind, Style};
-use ok_text::wrap::Row;
+use ok_text::wrap::{Frame, Row, FRAME_PAD};
 use ok_text::{is_combining, str_width, Pos, Span};
 
 use crate::canvas::{Canvas, Ink};
@@ -44,7 +44,7 @@ impl Struck {
         let fenced = matches!(kind, LineKind::Code | LineKind::Fence);
         let mine = own.0 <= line && line <= own.1;
         let strength = s.flow.text(line, mine, Strength::INK, s.now_ms);
-        let words = Ink { strength, double: kind == LineKind::Heading(2), under: false, inverse: false, big: s.page.layout().shape(line).scale == 2 };
+        let words = Ink { strength, double: kind == LineKind::Heading(2), ..Ink::at(strength) }.sized(s.page.layout().shape(line).scale);
         let marks = Ink { strength: strength.min(Strength::HALF), double: false, ..words };
         let wikis = if !fenced && text.contains("[[") { links_in(text) } else { Vec::new() };
         let past = match s.page.over() {
@@ -120,7 +120,7 @@ impl Struck {
     /// line is.
     fn hung(&self) -> Ink {
         let strength = if self.inverted(0) { self.words.strength } else { self.marks.strength };
-        Ink { big: false, strength, ..self.marks }.inverse(self.inverted(0))
+        Ink { strength, ..self.marks }.sized(1).inverse(self.inverted(0))
     }
 }
 
@@ -158,6 +158,37 @@ fn row_text(c: &mut Canvas, struck: &Struck, text: &str, row: &Row, col: i32, at
     col
 }
 
+/// [`row_text`] for a line of small type: `half` is the half cell of the
+/// grid the row starts at, and the half cell after its last is returned.
+fn row_text_small(c: &mut Canvas, struck: &Struck, text: &str, row: &Row, half: i32, at_row: i32) -> i32 {
+    let Some(shown) = text.get(row.start..row.end) else { return half };
+    let edge = (c.grid().sheet.last + 1) * 2;
+    let mut half = half;
+    let mut reach = half;
+    let mut run: Option<(usize, Ink)> = None;
+    let mut at = row.start;
+    for piece in clusters(shown) {
+        if reach > edge {
+            break;
+        }
+        let ink = struck.ink(at);
+        match run {
+            Some((_, running)) if running == ink => {}
+            Some((from, running)) => {
+                half += c.text_small(Surface::Sheet, half, at_row, text.get(from..at).unwrap_or(""), running);
+                run = Some((at, ink));
+            }
+            None => run = Some((at, ink)),
+        }
+        reach = reach.saturating_add(str_width(piece).min(8) as i32);
+        at += piece.len();
+    }
+    if let Some((from, running)) = run {
+        half += c.text_small(Surface::Sheet, half, at_row, text.get(from..at).unwrap_or(""), running);
+    }
+    half
+}
+
 /// The rule of a word limit on one row of the sheet: equals signs across
 /// the measure, faint as the leader dots of the contents are, and the
 /// limit at its right end at half strength, as a count is. Nothing here is
@@ -170,6 +201,52 @@ fn limit_rule(c: &mut Canvas, limit: usize, at_row: i32) {
         c.text(Surface::Sheet, text.first, at_row, &"=".repeat(room as usize), Ink::FAINT);
     }
     c.text_ending(Surface::Sheet, text.last, at_row, &label, Ink::HALF);
+}
+
+/// A frame round a block: its rectangle cleared, so a piece on a board
+/// lies over what is under it, then a rule round it at half strength, the
+/// marks' strength, broken where its fences' words cross its top and its
+/// bottom edges.
+fn frame_of(c: &mut Canvas, s: &Scene, frame: &Frame, paper: &dyn Fn(usize) -> i64, top: i64, pass: Pass) {
+    let grid = c.grid();
+    let (doc, layout) = (s.page.doc(), s.page.layout());
+    let first = (paper(frame.top) - top) as i32;
+    let last = (paper(frame.bottom.saturating_sub(1)) - top) as i32;
+    let left = grid.text.first + frame.left as i32;
+    let wide = frame.width as i32;
+    let skipped = |row: i32| pass.except.is_some_and(|(from, to)| from <= row as i64 + top && (row as i64 + top) < to);
+    if !skipped(first) {
+        c.erase(Surface::Sheet, left, first, wide, last - first + 1);
+    }
+    let edge = Strength::HALF;
+    // An edge with a fence's words in it: rule to the words, a cell clear
+    // either side of them, and rule on to the corner.
+    let across = |c: &mut Canvas, row: i32, fence: usize| {
+        if skipped(row) {
+            return;
+        }
+        let words = layout.rows(fence).first().map_or(0, |found| found.indent + found.cells) as i32;
+        let words = if layout.first_row(fence) + 1 == layout.end_row(fence) || row == first { words } else { 0 };
+        let pad = FRAME_PAD as i32;
+        if words == 0 {
+            c.rule(Surface::Sheet, (left, row), wide, true, edge);
+            return;
+        }
+        c.rule(Surface::Sheet, (left, row), pad, true, edge);
+        let after = left + pad + words + 1;
+        c.rule(Surface::Sheet, (after, row), left + wide - after, true, edge);
+    };
+    across(c, first, frame.open);
+    // The closing fence's last row is the bottom edge.
+    let bottom_fence = layout.rows(frame.close).len() == 1 && doc.line(frame.close).trim().len() <= frame.width;
+    if bottom_fence {
+        across(c, last, frame.close);
+    } else {
+        c.rule(Surface::Sheet, (left, last), wide, true, edge);
+    }
+    for (col, row_from, rows) in [(left, first, last - first + 1), (left + wide - 1, first, last - first + 1)] {
+        c.rule(Surface::Sheet, (col, row_from), rows, false, edge);
+    }
 }
 
 /// What a pass over the rows draws.
@@ -212,14 +289,38 @@ fn rows(c: &mut Canvas, s: &Scene, pass: Pass, own: (usize, usize), selection: O
     // The row of the text on the first row of the paper wanted, or the one
     // before it: starting a row early costs nothing.
     let first = (pass.from.max(1) - 1) as usize;
-    let (mut line, _) = layout.line_of_row(first.min(layout.total_rows().saturating_sub(1)));
+    let mut line = layout.first_line_from(first.min(layout.total_rows().saturating_sub(1)));
+    // Frames begun above the first line drawn are drawn first, under it.
+    let frames = layout.frames();
+    let mut next_frame = frames.partition_point(|frame| frame.open < line);
+    for frame in &frames[..next_frame] {
+        if paper(frame.bottom) > pass.from && paper(frame.top) < pass.to {
+            frame_of(c, s, frame, &paper, top, pass);
+        }
+    }
+    let column = layout.is_column();
+    let stop = pass.to.max(0) as usize;
     while line < doc.line_count() {
         let line_top = layout.first_row(line);
+        // A frame is drawn as its opening fence comes, over whatever lines
+        // before it lie under it, as a piece on a board lies over another.
+        while next_frame < frames.len() && frames[next_frame].open <= line {
+            let frame = &frames[next_frame];
+            if paper(frame.bottom) > pass.from && paper(frame.top) < pass.to {
+                frame_of(c, s, frame, &paper, top, pass);
+            }
+            next_frame += 1;
+        }
         if paper(line_top) >= pass.to {
-            break;
+            if column || layout.none_above_from(line, stop) {
+                break;
+            }
+            line += 1;
+            continue;
         }
         let text = doc.line(line);
         let shape = layout.shape(line);
+        let place = layout.place_of(line);
         let unit = shape.scale as i64;
         let wanted = |at: i64| {
             let on_sheet = if pass.whole { at >= pass.from && at + unit <= pass.to } else { at + unit > pass.from && at < pass.to };
@@ -239,18 +340,28 @@ fn rows(c: &mut Canvas, s: &Scene, pass: Pass, own: (usize, usize), selection: O
                     continue;
                 }
                 let at_row = (at - top) as i32;
-                let col = grid.text.first + (row.indent as i64 * unit) as i32;
-                let end = row_text(c, &struck, text, row, col, at_row);
-                // A selected line break shows as one inverse cell after the
-                // line, so a selection across blank lines can be seen.
-                if break_selected && within + 1 == line_rows.len() {
-                    c.text(Surface::Sheet, end.min(grid.text.last + 1), at_row, " ", struck.words.inverse(true));
+                if shape.small {
+                    let half = (grid.text.first + place.left as i32) * 2 + row.indent as i32;
+                    let end = row_text_small(c, &struck, text, row, half, at_row);
+                    if break_selected && within + 1 == line_rows.len() {
+                        c.text_small(Surface::Sheet, end.min((grid.text.last + 1) * 2), at_row, " ", struck.words.inverse(true));
+                    }
+                } else {
+                    let col = grid.text.first + place.left as i32 + (row.indent as i64 * unit) as i32;
+                    let end = row_text(c, &struck, text, row, col, at_row);
+                    // A selected line break shows as one inverse cell after
+                    // the line, so a selection across blank lines can be seen.
+                    if break_selected && within + 1 == line_rows.len() {
+                        c.text(Surface::Sheet, end.min(grid.text.last + 1), at_row, " ", struck.words.inverse(true));
+                    }
                 }
                 if changed {
                     c.change_bar(at_row, unit as i32);
                 }
                 if within == 0 && shape.hung > 0 {
-                    c.text_ending(Surface::Sheet, grid.gutter.last, at_row + unit as i32 - 1, s.page.hung_mark(line), struck.hung());
+                    // In the gutter, or in a frame's edge before the words.
+                    let last = if place.left == 0 { grid.gutter.last } else { grid.text.first + place.left as i32 - 1 };
+                    c.text_ending(Surface::Sheet, last, at_row + unit as i32 - 1, s.page.hung_mark(line), struck.hung());
                 }
             }
         }
@@ -325,6 +436,15 @@ fn cursor(c: &mut Canvas, s: &Scene, own: (usize, usize)) {
     };
     let struck = Struck::of(s, head.line, own, None);
     let ink = if in_gutter { struck.hung() } else { struck.ink(from + lead) };
+    if let (Some(half), false) = (caret.half, in_gutter) {
+        let half = grid.text.first * 2 + half;
+        if s.line.is_open() || !s.focused {
+            c.hollow_small(Surface::Sheet, half, at_row);
+        } else {
+            c.cursor_small(Surface::Sheet, half, at_row, piece, ink);
+        }
+        return;
+    }
     let size = caret.size as i32;
     let (wide, tall) = (cells * size, size);
     if s.line.is_open() || !s.focused {
@@ -342,7 +462,7 @@ fn cursor(c: &mut Canvas, s: &Scene, own: (usize, usize)) {
         }
     }
     if let Some(offer) = s.line.offer() {
-        c.text(Surface::Sheet, col + wide, at_row, offer, Ink { big: caret.size == 2, ..Ink::HALF });
+        c.text(Surface::Sheet, col + wide, at_row, offer, Ink::HALF.sized(caret.size));
     }
 }
 

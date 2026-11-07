@@ -675,7 +675,7 @@ fn keys_puts_the_keys_on_the_page_for_reading() {
     assert_eq!(title(&mut rig), "Keys");
     rig.press("end");
     let foot = rig.app.grid().platen;
-    assert_eq!(read(&mut rig, 47, 112, foot), "quit                    Leaves.");
+    assert_eq!(read(&mut rig, 47, 112, foot), "edge to make it wider or narrower.");
     rig.wait(60_000);
     assert!(folder.borrow().handed.iter().all(|(_, text)| text == ORCHARD), "the session never sees it");
     rig.press("esc");

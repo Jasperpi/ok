@@ -81,8 +81,9 @@ has 27 or more. The platen is always row `round(0.62 * text rows)`. When a
 list that should answer the line is not on screen, its rows rise from the say
 row over the foot of the sheet, eight at most.
 
-Nothing is ruled or boxed. Regions are separated by empty cells and by the two
-surfaces.
+Nothing of the interface is ruled or boxed. Regions are separated by empty
+cells and by the two surfaces. The one rule on the sheet is the frame of a
+block the writer made (see Blocks).
 
 ### The sheet
 
@@ -160,6 +161,37 @@ Linked from
 
 Up to six rows each, then `and 4 more`. A link to a text that does not exist
 yet ends in a space and a question mark.
+
+### Blocks
+
+Structure is written in the file as fenced blocks, the colons that Pandoc
+and most Markdown tools read: `::: box Packing` opens one, `:::` closes the
+innermost. The fence lines stay on the sheet at half strength like every
+other mark, so arrow keys still never lie. A fence that is never closed is
+only a line; a block appears when it is closed.
+
+| Fence | On the sheet |
+| --- | --- |
+| `::: box Name` (or any word not below) | A frame: a rule one pixel wide at half strength, through the middle of the cells two in from the words on every side. The opening fence is printed in its top edge and the closing fence in its bottom edge, the rule broken a cell either side of them. |
+| `::: big`, `::: huge` | What is inside at double or triple size, as a level-one heading is double. |
+| `::: small` | What is inside in small type: Spleen 6 by 12, half a cell across, whatever the face, on the baseline of the words round it, one row to a grid row. A heading inside keeps its own size. The cursor on it is half a cell wide. |
+| `::: columns` | Its parts side by side, two cells apart. A part is a block, or a paragraph of loose lines. |
+| `::: grid 3` | Its parts in rows of three. |
+| `::: board` | A free surface. Each block on it sits at its `at X,Y`, X cells from the board's left and Y rows down, 24 cells wide unless it says `width N`. A later block lies over an earlier one. |
+| `width N` anywhere on a fence | That block is N cells wide. |
+
+Up and Down go to what is drawn above and below, so in columns they stay
+in the column; Left and Right follow the file. A frame is taken with the
+mouse by its left edge, its corners or the bare rule of its top and bottom
+to move it (anywhere on a board; past the parts beside it in the flow), and
+by its right edge to make it wider or narrower. While it is held, an outline
+two pixels wide in the mark colour shows where it will go. Letting go
+writes the fence, one edit.
+
+On the line, plain words arrange the page and the say row says what Enter
+will do first: `Enter puts this paragraph in a box called Plan.` A box
+round blocks gets one colon more than the fences inside it, so the file
+reads right in any editor.
 
 ## Keys
 

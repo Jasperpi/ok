@@ -14,6 +14,7 @@
 //! the layout does the arithmetic: its rows and cells are rows and cells of
 //! the grid, whatever the size of the line they fall on.
 
+use crate::blocks::{self, Kind as Block, Node, Part};
 use crate::doc::{Change, Doc, Pos};
 use crate::width::{cell_width, is_combining, str_width};
 
@@ -295,9 +296,9 @@ pub struct Shape {
     /// them. Brought back onto a character boundary inside the line.
     pub hung: usize,
     /// How many cells of the grid one cell of this line takes each way: 1,
-    /// or 2 for a double-size line, which wraps at half the measure and whose
-    /// rows are each two rows of the grid tall. 0 counts as 1 and anything
-    /// above 2 as 2.
+    /// 2 for a double-size line, which wraps at half the measure and whose
+    /// rows are each two rows of the grid tall, or 3. 0 counts as 1 and
+    /// anything above 3 as 3.
     pub scale: usize,
     /// Blank cells before the text on every row after the first. One that
     /// would leave no room is ignored, as [`wrap`] has it.
@@ -305,12 +306,19 @@ pub struct Shape {
     /// Cells kept clear at each edge of the measure, on every row. One that
     /// would leave no room is ignored.
     pub inset: usize,
+    /// The line is a fence that opens or closes a block (see
+    /// [`crate::blocks`]), and not inside fenced code.
+    pub fence: bool,
+    /// Small type: each of the line's own cells is half a cell of the grid
+    /// across, so it wraps at twice the measure, and its rows are one grid
+    /// row tall. Only a single-size line can be small.
+    pub small: bool,
 }
 
 impl Default for Shape {
     /// A plain paragraph: nothing hung, single size, no hang, no inset.
     fn default() -> Shape {
-        Shape { hung: 0, scale: 1, hang: 0, inset: 0 }
+        Shape { hung: 0, scale: 1, hang: 0, inset: 0, fence: false, small: false }
     }
 }
 
@@ -330,9 +338,10 @@ impl Shape {
 /// in by the inset. So [`cell_of`] and [`col_at`] read them like any others,
 /// in cells of the line's own size counted from the edge of the measure.
 fn set(line: &str, measure: usize, shape: Shape) -> (Shape, Vec<Row>) {
-    let scale = shape.scale.clamp(1, 2);
+    let scale = shape.scale.clamp(1, 3);
+    let small = shape.small && scale == 1;
     let hung = floor_boundary(line, shape.hung);
-    let room = (measure / scale).max(1);
+    let room = if small { measure.saturating_mul(2).max(1) } else { (measure / scale).max(1) };
     let inset = if shape.inset < room.div_ceil(2) { shape.inset } else { 0 };
     let mut rows = wrap(line.get(hung..).unwrap_or(""), room - 2 * inset, shape.hang);
     if hung > 0 || inset > 0 {
@@ -342,17 +351,75 @@ fn set(line: &str, measure: usize, shape: Shape) -> (Shape, Vec<Row>) {
             row.indent += inset;
         }
     }
-    (Shape { hung, scale, hang: shape.hang, inset }, rows)
+    (Shape { hung, scale, hang: shape.hang, inset, fence: shape.fence, small }, rows)
+}
+
+/// Where a line is put on the page: the grid row its first row is on, the
+/// grid cell of the measure its rows start from, and how many grid cells
+/// wide it was wrapped to. A line in no block is at cell 0, as wide as the
+/// measure, below the line before it.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub struct Place {
+    pub top: usize,
+    pub left: usize,
+    pub width: usize,
+}
+
+/// A frame drawn round a block: its rectangle in grid rows and cells, and
+/// its two fence lines, which are drawn in its top and bottom edges.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Frame {
+    pub top: usize,
+    /// One past its last row.
+    pub bottom: usize,
+    pub left: usize,
+    pub width: usize,
+    pub open: usize,
+    pub close: usize,
+}
+
+/// Cells of a frame's edge, and of the gap kept between it and its words,
+/// on each side.
+pub const FRAME_PAD: usize = 2;
+/// Cells between columns side by side.
+pub const GAP: usize = 2;
+/// The narrowest a column, a frame's inside or a piece on a board may be.
+const NARROWEST: usize = 4;
+/// How wide a piece on a board is when its fence does not say.
+const PIECE: usize = 24;
+/// The size handed down through blocks that stands for small type.
+const SMALL: usize = 0;
+
+/// What is kept of the places when the document has blocks: everything a
+/// line in no block would not need.
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
+struct Placed {
+    lefts: Vec<usize>,
+    widths: Vec<usize>,
+    /// `reach[i]`: the lowest grid row any of lines `0..=i` comes down to,
+    /// plus one. It only grows, so the first line that reaches a row can be
+    /// found by halving.
+    reach: Vec<usize>,
+    /// `lows[i]`: the highest first row of any of lines `i..`. Once it is
+    /// below a row, no later line is on it.
+    lows: Vec<usize>,
+    frames: Vec<Frame>,
 }
 
 /// The rows of a whole document: the wrapped rows of every line, how each
-/// line is set, and for every line the number of grid rows above it.
+/// line is set, and where each line is put.
 ///
 /// Rows and cells handed in and out are those of the grid. A double-size
 /// line's rows are two grid rows tall and its cells two grid cells wide;
 /// either grid row of such a row, and either grid cell of such a cell, names
 /// it. A position inside a line's hung bytes is drawn by the page in the
 /// gutter; here it answers as the start of the line's first row.
+///
+/// A document with no blocks is one column of lines, each under the one
+/// before. Blocks (see [`crate::blocks`]) put lines in frames, beside one
+/// another and anywhere on a board, so two lines can share a row and a
+/// later line can be higher than an earlier one. Moving up and down goes by
+/// what is drawn: to the line drawn above or below, nearest the same cell.
 ///
 /// A layout belongs to one document at one measure. Keep it in step by
 /// calling [`Layout::apply`] with each [`Change`] the document hands back,
@@ -362,18 +429,24 @@ fn set(line: &str, measure: usize, shape: Shape) -> (Shape, Vec<Row>) {
 pub struct Layout {
     measure: usize,
     lines: Vec<Vec<Row>>,
-    /// One per line, as [`set`] gave it back.
+    /// One per line, as the page asked for it.
+    given: Vec<Shape>,
+    /// One per line, as [`set`] gave it back, with the size of any block it
+    /// is in.
     shapes: Vec<Shape>,
     /// `starts[i]` is the grid row of line `i`'s first row. One entry more
     /// than there are lines; the last is the total.
     starts: Vec<usize>,
+    /// How many lines are fences. With none, `placed` is `None`.
+    fences: usize,
+    placed: Option<Placed>,
 }
 
 impl Layout {
     /// Wraps every line of `doc`. `shape` is asked how each line is set,
     /// with the line's number and its text.
     pub fn new(doc: &Doc, measure: usize, shape: &dyn Fn(usize, &str) -> Shape) -> Layout {
-        let mut layout = Layout { measure, lines: Vec::new(), shapes: Vec::new(), starts: Vec::new() };
+        let mut layout = Layout { measure, lines: Vec::new(), given: Vec::new(), shapes: Vec::new(), starts: Vec::new(), fences: 0, placed: None };
         layout.rewrap(doc, measure, shape);
         layout
     }
@@ -388,19 +461,30 @@ impl Layout {
         self.measure = measure;
         self.lines.clear();
         self.shapes.clear();
+        self.given.clear();
+        self.placed = None;
         for (i, line) in doc.lines().iter().enumerate() {
-            let (shape, rows) = set(line, measure, shape(i, line));
+            let given = shape(i, line);
+            let (shape, rows) = set(line, measure, given);
             self.lines.push(rows);
             self.shapes.push(shape);
+            self.given.push(given);
         }
+        self.fences = self.given.iter().filter(|shape| shape.fence).count();
         self.starts.clear();
-        self.reindex(0, self.lines.len());
+        if self.fences > 0 {
+            self.place(doc);
+        } else {
+            self.reindex(0, self.lines.len());
+        }
     }
 
     /// Brings the layout in step with one edit. `doc` is the document after
     /// the change. Only the lines the change touched are wrapped again; the
     /// row numbers of the lines below are then shifted, and not even that
-    /// when the edit left the number of rows as it was.
+    /// when the edit left the number of rows as it was. A document with
+    /// blocks is placed again whole, which wraps only the lines whose place
+    /// changed width.
     ///
     /// A layout that turns out not to match the document, or a change that
     /// no edit to it could have made, gets the layout rebuilt whole rather
@@ -418,14 +502,27 @@ impl Layout {
         if first >= old_stop || first >= new_stop || old_stop > known || new_stop > doc.line_count() {
             return self.rewrap(doc, self.measure, shape);
         }
-        let (shapes, fresh): (Vec<Shape>, Vec<Vec<Row>>) =
-            (first..new_stop).map(|i| set(doc.line(i), self.measure, shape(i, doc.line(i)))).unzip();
+        let given: Vec<Shape> = (first..new_stop).map(|i| shape(i, doc.line(i))).collect();
+        let (shapes, fresh): (Vec<Shape>, Vec<Vec<Row>>) = (first..new_stop).zip(&given).map(|(i, &given)| set(doc.line(i), self.measure, given)).unzip();
         let before: usize = (first..old_stop).map(|line| self.height(line)).sum();
         let after: usize = fresh.iter().zip(&shapes).map(|(rows, shape)| rows.len() * shape.scale).sum();
+        let gone = self.given[first..old_stop].iter().filter(|shape| shape.fence).count();
+        let come = given.iter().filter(|shape| shape.fence).count();
         self.lines.splice(first..old_stop, fresh);
         self.shapes.splice(first..old_stop, shapes);
+        self.given.splice(first..old_stop, given);
         if self.lines.len() != doc.line_count() {
             return self.rewrap(doc, self.measure, shape);
+        }
+        self.fences = self.fences - gone + come;
+        if let Some(placed) = &mut self.placed {
+            let added = new_stop - first;
+            placed.lefts.splice(first..old_stop, std::iter::repeat_n(0, added));
+            placed.widths.splice(first..old_stop, std::iter::repeat_n(self.measure, added));
+        }
+        if self.fences > 0 || self.placed.is_some() {
+            self.starts.truncate(0);
+            return self.place(doc);
         }
         let to = if old_stop == new_stop && before == after { new_stop } else { self.lines.len() };
         self.reindex(first, to);
@@ -441,14 +538,84 @@ impl Layout {
         }
     }
 
-    /// How many grid rows one row of `line` is tall: 1 or 2.
+    /// Puts every line where the blocks of the document say, wrapping again
+    /// each line whose width or size that changes.
+    fn place(&mut self, doc: &Doc) {
+        let count = self.lines.len();
+        if self.fences == 0 {
+            // The last block went: back to one column, wrapped to the measure.
+            if self.placed.take().is_some() {
+                for line in 0..count {
+                    let (shape, rows) = set(doc.line(line), self.measure, self.given[line]);
+                    self.lines[line] = rows;
+                    self.shapes[line] = shape;
+                }
+            }
+            self.starts.clear();
+            return self.reindex(0, count);
+        }
+        let mut placed = self.placed.take().unwrap_or_default();
+        placed.lefts.resize(count, 0);
+        placed.widths.resize(count, self.measure);
+        placed.frames.clear();
+        self.starts.resize(count + 1, 0);
+        let given = &self.given;
+        let tree = blocks::tree(count, &|i| if given[i].fence { blocks::fence(doc.line(i)) } else { None });
+        let measure = self.measure;
+        let mut put = Putter { layout: self, doc, placed: &mut placed };
+        let bottom = put.stack(&tree, 0, 0, measure, 1);
+        // `starts` keeps its last entry as the total, whatever the order.
+        let total = (0..count).map(|i| put.bottom(i)).max().unwrap_or(0).max(bottom);
+        self.starts[count] = total;
+        placed.reach = Vec::with_capacity(count);
+        let mut reach = 0;
+        for line in 0..count {
+            reach = reach.max(self.starts[line] + self.height(line));
+            placed.reach.push(reach);
+        }
+        placed.lows = vec![0; count];
+        let mut low = usize::MAX;
+        for line in (0..count).rev() {
+            low = low.min(self.starts[line]);
+            placed.lows[line] = low;
+        }
+        placed.frames.sort_by_key(|frame| frame.open);
+        self.placed = Some(placed);
+    }
+
+    /// How many grid rows one row of `line` is tall: 1, 2 or 3.
     fn unit(&self, line: usize) -> usize {
-        self.shapes.get(line).map_or(1, |shape| shape.scale.clamp(1, 2))
+        self.shapes.get(line).map_or(1, |shape| shape.scale.clamp(1, 3))
     }
 
     /// Grid rows taken by all the rows of `line`.
     fn height(&self, line: usize) -> usize {
         self.lines.get(line).map_or(0, Vec::len) * self.unit(line)
+    }
+
+    /// True when the line is set in small type.
+    fn is_small(&self, line: usize) -> bool {
+        self.shapes.get(line).is_some_and(|shape| shape.small)
+    }
+
+    /// Grid cells from a count of a line's own cells: half as many on a
+    /// small line, the size times as many on a large one.
+    fn to_grid(&self, line: usize, cells: usize) -> usize {
+        if self.is_small(line) {
+            cells / 2
+        } else {
+            cells.saturating_mul(self.unit(line))
+        }
+    }
+
+    /// A line's own cells from grid cells: the inverse of `to_grid`, to the
+    /// first of the cells a grid cell holds.
+    fn from_grid(&self, line: usize, cells: usize) -> usize {
+        if self.is_small(line) {
+            cells.saturating_mul(2)
+        } else {
+            cells / self.unit(line)
+        }
     }
 
     /// Grid rows in the whole document. Always at least 1.
@@ -462,9 +629,29 @@ impl Layout {
     }
 
     /// How one line is set, as it was really used: `hung` on a character
-    /// boundary, `scale` 1 or 2. A plain paragraph past the end.
+    /// boundary, `scale` 1, 2 or 3. A plain paragraph past the end.
     pub fn shape(&self, line: usize) -> Shape {
         self.shapes.get(line).copied().unwrap_or_default()
+    }
+
+    /// Where a line is put. Past the end, the foot of the document.
+    pub fn place_of(&self, line: usize) -> Place {
+        match &self.placed {
+            Some(placed) if line < self.lines.len() => Place { top: self.starts[line], left: placed.lefts[line], width: placed.widths[line] },
+            _ => Place { top: self.first_row(line), left: 0, width: self.measure },
+        }
+    }
+
+    /// The frames to draw, in the order of their opening fences.
+    pub fn frames(&self) -> &[Frame] {
+        self.placed.as_ref().map_or(&[], |placed| placed.frames.as_slice())
+    }
+
+    /// True when every line is under the one before it, as in a document
+    /// with no blocks side by side or on a board. Then the line on a row is
+    /// the only one on it.
+    pub fn is_column(&self) -> bool {
+        self.placed.is_none()
     }
 
     /// The grid row of the line's first row, or [`Layout::total_rows`] past
@@ -476,14 +663,84 @@ impl Layout {
         }
     }
 
+    /// One past the last grid row of a line.
+    pub fn end_row(&self, line: usize) -> usize {
+        self.first_row(line) + self.height(line)
+    }
+
+    /// The first line, in the order of the document, that any row from
+    /// `row` down can be on: everything drawn on `row` or below is at or
+    /// after it.
+    pub fn first_line_from(&self, row: usize) -> usize {
+        match &self.placed {
+            None => self.line_of_row(row).0,
+            Some(placed) => placed.reach.partition_point(|&reach| reach <= row).min(self.lines.len().saturating_sub(1)),
+        }
+    }
+
+    /// True when no line from `line` on starts above `row`: a pass drawing
+    /// rows down to `row` can stop.
+    pub fn none_above_from(&self, line: usize, row: usize) -> bool {
+        match &self.placed {
+            None => self.first_row(line) >= row,
+            Some(placed) => placed.lows.get(line).is_none_or(|&low| low >= row),
+        }
+    }
+
     /// The line a grid row belongs to, and which of that line's rows it is:
     /// both grid rows of a double-size row give the same answer. Rows past
-    /// the end give the last row.
+    /// the end give the last row. Where lines share a row, the first of them
+    /// in the document; on a row no line is on, the line before it.
     pub fn line_of_row(&self, row: usize) -> (usize, usize) {
         let row = row.min(self.total_rows() - 1);
         let last_line = self.lines.len().saturating_sub(1);
+        if self.placed.is_some() {
+            let mut found = None;
+            self.lines_on(row, &mut |line| {
+                found = found.or(Some(line));
+            });
+            let line = found.unwrap_or_else(|| (0..=self.first_line_from(row).min(last_line)).rev().find(|&l| self.first_row(l) <= row).unwrap_or(0));
+            return (line, row.saturating_sub(self.first_row(line)) / self.unit(line));
+        }
         let line = self.starts.partition_point(|&start| start <= row).saturating_sub(1).min(last_line);
         (line, row.saturating_sub(self.first_row(line)) / self.unit(line))
+    }
+
+    /// Every line drawn on grid row `row`, in the order of the document.
+    fn lines_on(&self, row: usize, each: &mut dyn FnMut(usize)) {
+        if self.placed.is_none() {
+            if row < self.total_rows() && !self.lines.is_empty() {
+                each(self.line_of_row(row).0);
+            }
+            return;
+        }
+        let mut line = self.first_line_from(row);
+        while line < self.lines.len() && !self.none_above_from(line, row + 1) {
+            if self.first_row(line) <= row && row < self.end_row(line) {
+                each(line);
+            }
+            line += 1;
+        }
+    }
+
+    /// The line drawn on grid row `row` at grid cell `cell`: the last one
+    /// drawn there, which is the one on top. With `near`, when none covers
+    /// that cell, the one on the row nearest to it.
+    fn line_at(&self, row: usize, cell: usize, near: bool) -> Option<usize> {
+        let mut over = None;
+        let mut nearest: Option<(usize, usize)> = None;
+        self.lines_on(row, &mut |line| {
+            let place = self.place_of(line);
+            let right = place.left + place.width.max(1);
+            if place.left <= cell && cell < right {
+                over = Some(line);
+            }
+            let distance = if cell < place.left { place.left - cell } else { cell.saturating_sub(right - 1) };
+            if nearest.is_none_or(|(_, best)| distance < best) {
+                nearest = Some((line, distance));
+            }
+        });
+        over.or(if near { nearest.map(|(line, _)| line) } else { None })
     }
 
     /// Clamps `p` and finds which of its line's rows it is drawn on. A
@@ -506,21 +763,48 @@ impl Layout {
         match self.rows(p.line).get(row) {
             Some(found) => {
                 let cell = cell_of(doc.line(p.line), found, p.col);
-                (self.first_row(p.line) + row * unit, cell.saturating_mul(unit))
+                let place = self.place_of(p.line);
+                (place.top + row * unit, place.left + self.to_grid(p.line, cell))
             }
             None => (self.total_rows() - 1, 0),
         }
+    }
+
+    /// [`Layout::locate`] in half cells of the grid across, which is where
+    /// the cursor is drawn on a line of small type: the row, and twice the
+    /// grid cell, plus one when the place is in the right half of it.
+    pub fn locate_half(&self, doc: &Doc, p: Pos) -> (usize, usize) {
+        let (row, cell) = self.locate(doc, p);
+        let (q, within) = self.row_of(doc, p);
+        if !self.is_small(q.line) {
+            return (row, cell * 2);
+        }
+        let own = self.rows(q.line).get(within).map_or(0, |found| cell_of(doc.line(q.line), found, q.col));
+        (row, self.place_of(q.line).left * 2 + own)
     }
 
     /// The position on grid row `row` that answers for grid cell `cell`: the
     /// cluster drawn over it, or with `nearest` the place a cursor can rest
     /// that is drawn closest to it. Rows past the end give the last row.
     fn on_row(&self, doc: &Doc, row: usize, cell: usize, nearest: bool) -> Pos {
-        let (line, row) = self.line_of_row(row);
+        let row = row.min(self.total_rows() - 1);
+        let line = match self.placed {
+            None => self.line_of_row(row).0,
+            Some(_) => self.line_at(row, cell, true).unwrap_or_else(|| self.line_of_row(row).0),
+        };
+        self.on_line(doc, line, row, cell, nearest)
+    }
+
+    /// The position on `line`'s row at grid row `row` that answers for grid
+    /// cell `cell`.
+    fn on_line(&self, doc: &Doc, line: usize, row: usize, cell: usize, nearest: bool) -> Pos {
+        let place = self.place_of(line);
+        let unit = self.unit(line);
         let rows = self.rows(line);
-        let last_row = row + 1 == rows.len();
-        let cell = cell / self.unit(line);
-        let col = rows.get(row).map_or(0, |found| col_for(doc.line(line), found, cell, last_row, nearest));
+        let within = (row.saturating_sub(place.top) / unit).min(rows.len().saturating_sub(1));
+        let last_row = within + 1 == rows.len();
+        let cell = self.from_grid(line, cell.saturating_sub(place.left));
+        let col = rows.get(within).map_or(0, |found| col_for(doc.line(line), found, cell, last_row, nearest));
         doc.clamp(Pos { line, col })
     }
 
@@ -531,17 +815,50 @@ impl Layout {
         self.on_row(doc, row, cell, false)
     }
 
+    /// The line to step onto from grid row `from` going one way, nearest
+    /// grid cell `cell`, and the grid row it is reached on. A line that
+    /// covers the cell is wanted; failing any on the rows that way, the
+    /// nearest on the first row that has a line at all.
+    fn step(&self, from: usize, cell: usize, up: bool) -> Option<(usize, usize)> {
+        let total = self.total_rows();
+        let mut first_any = None;
+        let mut row = from;
+        loop {
+            row = if up { row.checked_sub(1)? } else { row + 1 };
+            if row >= total {
+                break;
+            }
+            if let Some(line) = self.line_at(row, cell, false) {
+                return Some((line, row));
+            }
+            if first_any.is_none() {
+                first_any = self.line_at(row, cell, true).map(|line| (line, row));
+            }
+        }
+        first_any
+    }
+
     /// One row up from `p`, to the place on that row drawn nearest to
     /// `cell`; of two equally near, the left one. From the first row, the
     /// start of the document.
     ///
     /// This is [`Layout::pos_at`] except inside a tab, where the nearer
     /// edge may be the far one. On a double-size row, nearest means nearest
-    /// to the double cell that `cell` falls in.
+    /// to the double cell that `cell` falls in. Where lines stand side by
+    /// side, up is the line drawn above, not the one before in the text.
     pub fn up(&self, doc: &Doc, p: Pos, cell: usize) -> Pos {
-        match self.locate(doc, p).0 {
-            0 => Pos::default(),
-            row => self.on_row(doc, row - 1, cell, true),
+        let at = self.locate(doc, p).0;
+        if self.placed.is_none() {
+            return match at {
+                0 => Pos::default(),
+                row => self.on_row(doc, row - 1, cell, true),
+            };
+        }
+        let p = doc.clamp(p);
+        let from = at.min(self.first_row(p.line) + self.row_of(doc, p).1 * self.unit(p.line));
+        match self.step(from, cell, true) {
+            Some((line, row)) => self.on_line(doc, line, row, cell, true),
+            None => Pos::default(),
         }
     }
 
@@ -549,11 +866,14 @@ impl Layout {
     /// `cell`, as [`Layout::up`] has it. From the last row, the end of the
     /// document. A double-size row is stepped over whole, like any other.
     pub fn down(&self, doc: &Doc, p: Pos, cell: usize) -> Pos {
-        let below = self.locate(doc, p).0 + self.unit(doc.clamp(p).line);
-        if below >= self.total_rows() {
-            doc.end()
-        } else {
-            self.on_row(doc, below, cell, true)
+        let unit = self.unit(doc.clamp(p).line);
+        let below = self.locate(doc, p).0 + unit;
+        if self.placed.is_none() {
+            return if below >= self.total_rows() { doc.end() } else { self.on_row(doc, below, cell, true) };
+        }
+        match self.step(below - 1, cell, false) {
+            Some((line, row)) => self.on_line(doc, line, row, cell, true),
+            None => doc.end(),
         }
     }
 
@@ -578,6 +898,126 @@ impl Layout {
             _ => text.len(),
         };
         doc.clamp(Pos { line: p.line, col })
+    }
+}
+
+/// Places lines for [`Layout::place`].
+struct Putter<'a> {
+    layout: &'a mut Layout,
+    doc: &'a Doc,
+    placed: &'a mut Placed,
+}
+
+impl Putter<'_> {
+    fn bottom(&self, line: usize) -> usize {
+        self.layout.starts[line] + self.layout.height(line)
+    }
+
+    /// Puts one line at a place, at a size, wrapping it again if its width
+    /// or size changed. Returns the row below it.
+    fn line(&mut self, line: usize, top: usize, left: usize, width: usize, scale: usize) -> usize {
+        let layout = &mut *self.layout;
+        let mut want = layout.given[line];
+        if want.fence {
+            // A fence is a single-size line of marks, whatever it is in.
+            want = Shape { fence: true, ..Shape::default() };
+        } else if scale == SMALL {
+            // Small type makes a single-size line small; a heading keeps
+            // its own size.
+            want.small = want.scale <= 1;
+        } else {
+            want.scale = want.scale.max(scale).clamp(1, 3);
+        }
+        let width = width.max(1);
+        let current = layout.shapes[line];
+        let small = want.small && want.scale <= 1;
+        if self.placed.widths[line] != width || current.scale != want.scale.clamp(1, 3) || current.fence != want.fence || current.small != small || layout.lines[line].is_empty() {
+            let (shape, rows) = set(self.doc.line(line), width, want);
+            layout.lines[line] = rows;
+            layout.shapes[line] = shape;
+            self.placed.widths[line] = width;
+        }
+        self.placed.lefts[line] = left;
+        layout.starts[line] = top;
+        top + layout.height(line)
+    }
+
+    /// Puts parts one under another. Returns the row below the last.
+    fn stack(&mut self, parts: &[Part], top: usize, left: usize, width: usize, scale: usize) -> usize {
+        let mut row = top;
+        for part in parts {
+            row = match part {
+                Part::Line(line) => self.line(*line, row, left, width, scale),
+                Part::Node(node) => self.node(node, row, left, width, scale),
+            };
+        }
+        row
+    }
+
+    /// Puts a block and what is in it. Returns the row below it.
+    fn node(&mut self, node: &Node, top: usize, left: usize, room: usize, scale: usize) -> usize {
+        let width = node.spec.width.map_or(room, |asked| asked.min(room)).max(1);
+        match node.spec.kind {
+            Block::Box if width >= NARROWEST + 2 * FRAME_PAD => {
+                let inner = width - 2 * FRAME_PAD;
+                let below = self.line(node.open, top, left + FRAME_PAD, inner, 1);
+                let end = self.stack(&node.kids, below, left + FRAME_PAD, inner, scale);
+                let bottom = self.line(node.close, end, left + FRAME_PAD, inner, 1);
+                self.placed.frames.push(Frame { top, bottom, left, width, open: node.open, close: node.close });
+                bottom
+            }
+            Block::Box | Block::Plain => self.around(node, top, left, width, |me, row| me.stack(&node.kids, row, left, width, scale)),
+            Block::Size(size) => self.around(node, top, left, width, |me, row| me.stack(&node.kids, row, left, width, scale.max(size as usize))),
+            Block::Small => self.around(node, top, left, width, |me, row| me.stack(&node.kids, row, left, width, SMALL)),
+            Block::Columns | Block::Grid(_) => {
+                let blank = |i: usize| self.doc.line(i).trim().is_empty();
+                let cells = blocks::cells(&node.kids, &blank);
+                let across = match node.spec.kind {
+                    Block::Grid(n) => n as usize,
+                    _ => cells.len().clamp(1, 8),
+                };
+                let across = (1..=across).rev().find(|&n| width >= n * NARROWEST + (n - 1) * GAP).unwrap_or(1);
+                let column = (width - (across - 1) * GAP) / across;
+                self.around(node, top, left, width, |me, row| {
+                    let mut row = row;
+                    for line_of_cells in cells.chunks(across) {
+                        let mut lowest = row;
+                        for (i, cell) in line_of_cells.iter().enumerate() {
+                            lowest = lowest.max(me.stack(cell, row, left + i * (column + GAP), column, scale));
+                        }
+                        row = lowest;
+                    }
+                    row
+                })
+            }
+            Block::Board => self.around(node, top, left, width, |me, row| {
+                let mut lowest = row;
+                let mut loose = row;
+                for part in &node.kids {
+                    match part {
+                        Part::Node(piece) if piece.spec.at.is_some() => {
+                            let (x, y) = piece.spec.at.unwrap_or_default();
+                            let wide = piece.spec.width.unwrap_or(PIECE).clamp(NARROWEST.min(width), width);
+                            let x = x.min(width - wide);
+                            let bottom = me.node(piece, row + y, left + x, wide, scale);
+                            lowest = lowest.max(bottom);
+                        }
+                        _ => {
+                            loose = me.stack(std::slice::from_ref(part), loose, left, width, scale);
+                            lowest = lowest.max(loose);
+                        }
+                    }
+                }
+                lowest
+            }),
+        }
+    }
+
+    /// Puts a block's two fences round what `inside` puts between them.
+    fn around(&mut self, node: &Node, top: usize, left: usize, width: usize, inside: impl FnOnce(&mut Self, usize) -> usize) -> usize {
+        let below = self.line(node.open, top, left, width, 1);
+        let end = inside(self, below);
+        self.line(node.close, end, left, width, 1)
     }
 }
 
@@ -1417,9 +1857,9 @@ mod tests {
     fn a_shape_hangs_bytes_halves_the_measure_and_sets_rows_in() {
         let (_, layout) = shaped_sample();
         assert_eq!(layout.rows(0), [row(2, 6, 0, 3), row(6, 12, 0, 5), row(12, 16, 0, 4)]);
-        assert_eq!(layout.shape(0), Shape { hung: 2, scale: 2, hang: 0, inset: 0 });
+        assert_eq!(layout.shape(0), Shape { hung: 2, scale: 2, hang: 0, inset: 0, fence: false, small: false });
         assert_eq!(layout.rows(3), [row(2, 9, 2, 6), row(9, 18, 2, 8), row(18, 22, 2, 4)]);
-        assert_eq!(layout.shape(3), Shape { hung: 2, scale: 1, hang: 0, inset: 2 });
+        assert_eq!(layout.shape(3), Shape { hung: 2, scale: 1, hang: 0, inset: 2, fence: false, small: false });
         assert_eq!(layout.rows(4), [row(0, 11, 0, 10), row(11, 20, 2, 9)]);
         assert_eq!(layout.shape(9), Shape::default());
         // A line that is nothing but its mark still has a row, after the mark.
@@ -1438,14 +1878,14 @@ mod tests {
         let layout = Layout::new(&doc, 6, &|_, _| Shape { hung: 4, ..Shape::default() });
         assert_eq!(layout.shape(0).hung, 3);
         assert_eq!(layout.rows(0)[0].start, 3);
-        let layout = Layout::new(&doc, 6, &|_, _| Shape { hung: usize::MAX, scale: 0, hang: usize::MAX, inset: usize::MAX });
-        assert_eq!(layout.shape(0), Shape { hung: 13, scale: 1, hang: usize::MAX, inset: 0 });
+        let layout = Layout::new(&doc, 6, &|_, _| Shape { hung: usize::MAX, scale: 0, hang: usize::MAX, inset: usize::MAX, fence: false, small: false });
+        assert_eq!(layout.shape(0), Shape { hung: 13, scale: 1, hang: usize::MAX, inset: 0, fence: false, small: false });
         assert_eq!(layout.rows(0), [row(13, 13, 0, 0)]);
-        // A scale above 2 is 2; an inset that leaves a cell is kept, one
-        // that leaves none is dropped.
+        // A scale above 3 is 3; an inset that leaves a cell is kept, one
+        // that leaves none is dropped, as it is at 3 in a measure of 6.
         let layout = Layout::new(&doc, 6, &|_, _| Shape { scale: 9, inset: 1, ..Shape::default() });
-        assert_eq!(layout.shape(0), Shape { hung: 0, scale: 2, hang: 0, inset: 1 });
-        assert!(layout.rows(0).iter().all(|r| r.indent == 1 && r.cells <= 1));
+        assert_eq!(layout.shape(0), Shape { hung: 0, scale: 3, hang: 0, inset: 0, fence: false, small: false });
+        assert!(layout.rows(0).iter().all(|r| r.indent == 0 && r.cells <= 2));
         let layout = Layout::new(&doc, 6, &|_, _| Shape { inset: 3, ..Shape::default() });
         assert_eq!(layout.shape(0).inset, 0);
         let layout = Layout::new(&doc, 0, &|_, _| Shape { scale: 2, inset: 1, ..Shape::default() });
@@ -1682,5 +2122,187 @@ mod tests {
             layout.apply(&asked, &change, &page_shape);
             layout.locate(&asked, asked.end());
         }
+    }
+
+    /// Fences and headings, as the page shapes them.
+    fn block_shape(_: usize, line: &str) -> Shape {
+        if crate::blocks::is_fence(line) {
+            Shape { fence: true, ..Shape::default() }
+        } else {
+            page_shape(0, line)
+        }
+    }
+
+    #[test]
+    fn a_box_sets_its_words_in_from_its_frame() {
+        let doc = Doc::from_text("before\n::: box Packing\ntent and stove\n:::\nafter");
+        let layout = Layout::new(&doc, 20, &block_shape);
+        assert!(!layout.is_column());
+        assert_eq!(layout.place_of(0), Place { top: 0, left: 0, width: 20 });
+        assert_eq!(layout.place_of(1), Place { top: 1, left: FRAME_PAD, width: 20 - 2 * FRAME_PAD });
+        assert_eq!(layout.place_of(2), Place { top: 2, left: FRAME_PAD, width: 16 });
+        assert_eq!(layout.place_of(3).top, 3);
+        assert_eq!(layout.place_of(4), Place { top: 4, left: 0, width: 20 });
+        assert_eq!(layout.frames(), [Frame { top: 1, bottom: 4, left: 0, width: 20, open: 1, close: 3 }]);
+        assert_eq!(layout.locate(&doc, p(2, 5)), (2, FRAME_PAD + 5));
+        assert_eq!(layout.pos_at(&doc, 2, FRAME_PAD + 5), p(2, 5));
+    }
+
+    #[test]
+    fn a_size_block_sets_its_lines_large() {
+        let doc = Doc::from_text("::: huge\nbig words\n:::\n::: big\nwords\n:::");
+        let layout = Layout::new(&doc, 30, &block_shape);
+        assert_eq!(layout.shape(1).scale, 3);
+        assert_eq!(layout.shape(4).scale, 2);
+        // "big words" is 9 cells, three times over in a measure of 30.
+        assert_eq!(layout.rows(1).len(), 1);
+        assert_eq!([0, 1, 2, 3, 4, 5].map(|l| layout.first_row(l)), [0, 1, 4, 5, 6, 8]);
+        assert_eq!(layout.total_rows(), 9);
+    }
+
+    #[test]
+    fn columns_share_rows_and_up_and_down_stay_in_a_column() {
+        let doc = Doc::from_text("top\n::: columns\nleft one\nleft two\n\nright\n:::\nfoot");
+        let layout = Layout::new(&doc, 22, &block_shape);
+        // Two parts: "left one/left two" with its blank line, and "right".
+        let column = (22 - GAP) / 2;
+        assert_eq!(layout.place_of(2), Place { top: 2, left: 0, width: column });
+        assert_eq!(layout.place_of(3), Place { top: 3, left: 0, width: column });
+        assert_eq!(layout.place_of(5), Place { top: 2, left: column + GAP, width: column });
+        assert_eq!(layout.place_of(6).top, 5);
+        assert_eq!(layout.total_rows(), 7);
+        // Down from "right" passes under the left column to the fence.
+        assert_eq!(layout.down(&doc, p(5, 2), column + GAP + 2), p(6, 3));
+        // Up from the foot, at the right, lands in the right column's rows.
+        let up = layout.up(&doc, p(7, 0), column + GAP + 1);
+        assert_eq!(up.line, 6);
+        let up = layout.up(&doc, p(6, 0), column + GAP + 1);
+        assert_eq!(up, p(5, 1));
+        assert_eq!(layout.up(&doc, p(5, 1), column + GAP + 1).line, 1);
+        // Clicks find the line drawn there.
+        assert_eq!(layout.pos_at(&doc, 2, column + GAP), p(5, 0));
+        assert_eq!(layout.pos_at(&doc, 3, 1), p(3, 1));
+        assert_eq!(layout.line_of_row(2).0, 2);
+    }
+
+    #[test]
+    fn pieces_on_a_board_sit_where_they_say() {
+        let doc = Doc::from_text("::: board
+::: Idea at 20 3
+x
+:::
+::: Other at 0 0
+y
+:::
+:::");
+        let layout = Layout::new(&doc, 50, &block_shape);
+        let frames = layout.frames();
+        assert_eq!(frames.len(), 2);
+        assert_eq!((frames[0].top, frames[0].left, frames[0].width), (4, 20, 24));
+        assert_eq!((frames[1].top, frames[1].left, frames[1].width), (1, 0, 24));
+        // The later piece is higher than the earlier one, and the board
+        // ends under the lowest piece.
+        assert!(layout.first_row(5) < layout.first_row(2));
+        assert_eq!(layout.first_row(7), 7);
+        assert_eq!(layout.pos_at(&doc, 5, 22), p(2, 0));
+        assert_eq!(layout.pos_at(&doc, 2, 2), p(5, 0));
+        // Too far right is brought back inside the board.
+        let doc = Doc::from_text("::: board
+::: at 99 0 width 10
+z
+:::
+:::");
+        let layout = Layout::new(&doc, 40, &block_shape);
+        assert_eq!(layout.frames()[0].left, 30);
+    }
+
+    #[test]
+    fn edits_to_blocks_leave_the_layout_a_fresh_one_would_have() {
+        let start = "intro\n::: columns\na b c d e f\n\nright side\n:::\n::: box\n# Head\n:::\nend";
+        let edits: &[(Pos, Pos, &str)] = &[
+            (p(2, 3), p(2, 3), "more words in the left column "),
+            (p(5, 0), p(5, 3), ""),
+            (p(0, 5), p(0, 5), "\n::: big"),
+            (p(3, 0), p(3, 0), ":::\n"),
+            (p(0, 0), p(99, 99), "plain again"),
+        ];
+        let mut doc = Doc::from_text(start);
+        let mut layout = Layout::new(&doc, 24, &block_shape);
+        for &(a, b, text) in edits {
+            let change = doc.replace(Span::new(doc.clamp(a), doc.clamp(b)), text);
+            layout.apply(&doc, &change, &block_shape);
+            assert_eq!(layout, Layout::new(&doc, 24, &block_shape), "after {text:?}");
+        }
+        assert!(layout.is_column());
+    }
+
+    #[test]
+    fn random_edits_among_blocks_keep_the_layout_whole() {
+        const BITS: &[&str] = &[
+            "::: box Notes\n", "::: columns\n", "::: grid 3\n", "::: board\n", "::: big\n", "::: huge\n", "::: A at 7 2\n",
+            "::: B at 30 0 width 12\n", ":::\n", "::::\n", "word ", "a longer run of words ", "\n", "\n\n", "# Head\n", "- item\n", "```\n",
+        ];
+        let mut seed: u64 = 0x5EED_B10C;
+        let mut next = |n: usize| {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            (seed % n as u64) as usize
+        };
+        let mut with_blocks = 0;
+        for round in 0..300 {
+            let mut doc = Doc::from_text("");
+            let measure = [8, 20, 40, 66][round % 4];
+            let mut layout = Layout::new(&doc, measure, &block_shape);
+            for step in 0..60 {
+                let a = Pos { line: next(doc.line_count() + 1), col: next(12) };
+                // Mostly typing, now and then a stretch taken out.
+                let b = if step % 5 == 0 { Pos { line: next(doc.line_count() + 1), col: next(12) } } else { a };
+                let (a, b) = (doc.clamp(a.min(b)), doc.clamp(a.max(b)));
+                let a = Pos { col: crate::wrap::floor_boundary(doc.line(a.line), a.col), ..a };
+                let b = Pos { col: crate::wrap::floor_boundary(doc.line(b.line), b.col), ..b };
+                let text: String = (0..1 + next(3)).map(|_| BITS[next(BITS.len())]).collect();
+                let change = doc.replace(Span::new(a, b.max(a)), &text);
+                layout.apply(&doc, &change, &block_shape);
+                assert_eq!(layout, Layout::new(&doc, measure, &block_shape), "{:?}", doc.lines());
+                for line in 0..doc.line_count() {
+                    let place = layout.place_of(line);
+                    assert!(place.left + place.width <= measure.max(1), "{place:?} in {measure}");
+                    let here = Pos { line, col: 0 };
+                    let (row, cell) = layout.locate(&doc, here);
+                    assert!(row < layout.total_rows());
+                    let _ = layout.up(&doc, here, cell);
+                    let _ = layout.down(&doc, here, cell);
+                    let _ = layout.pos_at(&doc, row, cell);
+                }
+                let _ = layout.line_of_row(layout.total_rows() + 3);
+                with_blocks += usize::from(!layout.frames().is_empty());
+            }
+        }
+        assert!(with_blocks > 6000, "{with_blocks}");
+    }
+
+    #[test]
+    fn small_type_wraps_at_twice_the_measure_in_half_cells() {
+        let doc = Doc::from_text("::: small
+abcdefghij klmnopqrst uvwxyz
+:::");
+        let layout = Layout::new(&doc, 10, &block_shape);
+        assert!(layout.shape(1).small);
+        // Twenty half cells to a row of ten cells.
+        assert_eq!(layout.rows(1).len(), 2);
+        assert_eq!(layout.first_row(2), 3);
+        // The fifth letter is in the third cell, its left half.
+        assert_eq!(layout.locate(&doc, p(1, 4)), (1, 2));
+        assert_eq!(layout.locate_half(&doc, p(1, 4)), (1, 4));
+        assert_eq!(layout.locate_half(&doc, p(1, 5)), (1, 5));
+        assert_eq!(layout.pos_at(&doc, 1, 2), p(1, 4));
+        // A heading keeps its own size in small type.
+        let doc = Doc::from_text("::: small
+# Head
+:::");
+        let layout = Layout::new(&doc, 20, &block_shape);
+        assert!(!layout.shape(1).small);
+        assert_eq!(layout.shape(1).scale, 2);
     }
 }
