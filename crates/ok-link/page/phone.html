@@ -228,17 +228,20 @@ button {
   <div class="keys" id="keys">
     <div class="heard-line" id="heard-line" aria-hidden="true"><span id="heard-text"></span></div>
     <button class="key speak" id="speak" type="button" aria-pressed="false" hidden>Speak</button>
-    <button class="key" type="button" data-text=".">Period</button>
-    <button class="key" type="button" data-text=",">Comma</button>
-    <button class="key" type="button" data-text="?">Question</button>
     <button class="key" type="button" data-key="enter">Return</button>
-    <button class="key" type="button" data-key="wordback">Word back</button>
-    <button class="key" type="button" data-key="undo">Undo</button>
-    <button class="key wide" type="button" id="scratch" disabled>Scratch that</button>
-    <button class="key" type="button" id="more" aria-expanded="false" aria-controls="settings">Settings</button>
+    <button class="key" type="button" id="scratch" disabled>Scratch</button>
+    <button class="key" type="button" id="more" aria-expanded="false" aria-controls="settings">More</button>
     <button class="key all" type="button" id="switch" hidden></button>
   </div>
   <div class="settings" id="settings" hidden>
+    <div class="keys">
+      <button class="key" type="button" data-text=".">Period</button>
+      <button class="key" type="button" data-text=",">Comma</button>
+      <button class="key" type="button" data-text="?">Question</button>
+      <button class="key" type="button" data-key="wordback">Word back</button>
+      <button class="key" type="button" data-key="undo">Undo</button>
+      <button class="key" type="button" data-key="redo">Redo</button>
+    </div>
     <select id="lang" aria-label="Language heard">
       <option value="en-US">English, United States</option>
       <option value="en-GB">English, United Kingdom</option>
@@ -248,6 +251,7 @@ button {
       <option value="de-DE">Deutsch</option>
     </select>
     <button class="key all" type="button" id="live" aria-pressed="true">Words appear as you speak</button>
+    <button class="key all" type="button" id="other" hidden></button>
     <button class="key all" type="button" id="forget">Forget this computer</button>
   </div>
 </section>
@@ -504,6 +508,7 @@ $("more").addEventListener("click", () => {
   const open = $("settings").hidden;
   $("settings").hidden = !open;
   $("more").setAttribute("aria-expanded", String(open));
+  $("more").textContent = open ? "Less" : "More";
 });
 $("forget").addEventListener("click", () => {
   localStorage.removeItem("ok-secret");
@@ -519,13 +524,14 @@ function tick() {
 // Offers the other way to the computer: Wi-Fi from the relay, the relay
 // from Wi-Fi. Pressed when this way cannot reach it, or kept quiet.
 function offerSwitch(urgent) {
-  const button = $("switch");
   const there = onRelay ? localStorage.getItem("ok-direct") : localStorage.getItem("ok-relay") || (status && status.relay);
-  if (!there) { button.hidden = true; return; }
-  button.hidden = false;
-  button.textContent = onRelay ? "Use Wi-Fi" : "Use the relay";
-  button.setAttribute("aria-pressed", urgent ? "true" : "false");
-  button.onclick = () => location.assign(there);
+  const label = onRelay ? "Use Wi-Fi instead" : "Use the relay instead";
+  for (const [id, show] of [["switch", urgent], ["other", !urgent]]) {
+    const button = $(id);
+    button.hidden = !there || !show;
+    button.textContent = label;
+    button.onclick = () => location.assign(there);
+  }
 }
 
 // ---------------------------------------------------------------- speaking
@@ -576,6 +582,20 @@ function shaped(raw, before) {
   return (joins ? "" : " ") + text;
 }
 
+// Words as heard, for comparing: no case, no marks, single spaces.
+function norm(text) {
+  return text.toLowerCase().replace(/[^\p{L}\p{N}']+/gu, " ").trim();
+}
+
+// What is left of `text` once the part that reads as `n` normalised
+// characters is taken off its front.
+function unspoken(text, n) {
+  for (let i = 0; i <= text.length; i++) {
+    if (norm(text.slice(0, i)).length >= n) return text.slice(i);
+  }
+  return "";
+}
+
 // The words before the cursor, without what is only heard so far.
 function settled() {
   const p = Array.from(tail);
@@ -617,13 +637,38 @@ function startListening() {
   hearing.continuous = true;
   hearing.interimResults = true;
   hearing.maxAlternatives = 1;
+  // Chrome on Android hands back every result of the session with each
+  // event, often from index 0, and on some phones each result repeats the
+  // ones before it. So results are counted, and each final is taken once,
+  // with whatever this session already put in cut from its front.
+  let done = 0, heardSoFar = "", lastFinal = "", lastAt = 0;
+  const fresh = (text) => {
+    const before = norm(heardSoFar), now = norm(text);
+    if (before && (now === before || now.startsWith(before + " "))) return unspoken(text, before.length);
+    return text;
+  };
+  // A new session numbers its results from nothing again.
+  hearing.onstart = () => { done = 0; heardSoFar = ""; };
   hearing.onresult = (event) => {
     let interim = "";
-    for (let i = event.resultIndex; i < event.results.length; i++) {
+    if (event.results.length < done) done = 0;
+    for (let i = done; i < event.results.length; i++) {
       const result = event.results[i];
-      if (result.isFinal) commit(result[0].transcript);
-      else interim += result[0].transcript;
+      const text = result[0].transcript;
+      if (result.isFinal && i === done) {
+        done++;
+        const part = fresh(text);
+        const same = norm(part) && norm(part) === lastFinal && Date.now() - lastAt < 2500;
+        heardSoFar = part === text ? `${heardSoFar} ${text}` : text;
+        if (same || !norm(part)) { change(shown, ""); shown = ""; continue; }
+        lastFinal = norm(part);
+        lastAt = Date.now();
+        commit(part);
+      } else if (!result.isFinal) {
+        interim += text;
+      }
     }
+    interim = fresh(interim);
     $("heard-text").textContent = interim;
     if (live() && interim) {
       const words = shaped(interim, settled());
